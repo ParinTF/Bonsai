@@ -9,7 +9,13 @@ using MongoDB.Driver;
 var builder = WebApplication.CreateBuilder(args);
 
 var mongoConn = builder.Configuration["Mongo:ConnectionString"];
-builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoConn));
+builder.Services.AddSingleton<IMongoClient>(_ =>
+{
+    var settings = MongoClientSettings.FromConnectionString(mongoConn);
+    // Windows Schannel can fail the TLS 1.3 handshake to Atlas (0x80090304); pin TLS 1.2.
+    settings.SslSettings = new SslSettings { EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 };
+    return new MongoClient(settings);
+});
 builder.Services.AddSingleton<MongoContext>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddSingleton<TokenService>();
@@ -38,7 +44,14 @@ app.UseCors("web");
 app.UseAuthentication();
 app.UseAuthorization();
 
-await app.Services.GetRequiredService<MongoContext>().EnsureIndexesAsync();
+try
+{
+    await app.Services.GetRequiredService<MongoContext>().EnsureIndexesAsync();
+}
+catch (Exception e)
+{
+    app.Logger.LogWarning(e, "Could not create Mongo indexes at startup (is the DB reachable / IP allowlisted in Atlas?)");
+}
 
 app.MapGet("/health", () => new { status = "ok" });
 app.MapGet("/health/db", async (IMongoClient c) =>
