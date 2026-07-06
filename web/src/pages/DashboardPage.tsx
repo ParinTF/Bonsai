@@ -10,13 +10,13 @@ import {
 } from '@/components/ui/select'
 
 const progressTypeLabels: Record<ProgressType, string> = {
-  rollup: 'เฉลี่ยจากเป้าย่อย',
-  stages: 'เป็นขั้นตอน',
-  numeric: 'ตัวเลขสะสม',
-  checklist: 'เช็คลิสต์',
-  manual: 'กรอกเอง',
-  daily: 'ทำทุกวัน',
-  weekly: 'ทำรายสัปดาห์',
+  rollup: 'Rolls up from children',
+  stages: 'Stage checklist',
+  numeric: 'Numeric target',
+  checklist: 'Child checklist',
+  manual: 'Manual %',
+  daily: 'Daily habit',
+  weekly: 'Weekly commitment',
 }
 
 export function DashboardPage() {
@@ -33,14 +33,14 @@ export function DashboardPage() {
     },
   })
 
-  if (isLoading) return <p className="text-muted-foreground">กำลังโหลด…</p>
-  if (error) return <p className="text-destructive">โหลดไม่สำเร็จ: {(error as Error).message}</p>
+  if (isLoading) return <p className="text-muted-foreground">Loading…</p>
+  if (error) return <p className="text-destructive">Failed to load: {(error as Error).message}</p>
 
   const roots = (goals ?? []).filter(g => g.parentId === null && g.status !== 'archived')
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">เป้าหมายของฉัน</h1>
+      <h1 className="text-2xl font-bold">My Goals</h1>
 
       <form
         onSubmit={e => { e.preventDefault(); if (title.trim()) createGoal.mutate() }}
@@ -48,7 +48,7 @@ export function DashboardPage() {
       >
         <Input
           value={title} onChange={e => setTitle(e.target.value)}
-          placeholder="เพิ่มเป้าหมายใหญ่…"
+          placeholder="Add a big goal…"
           className="flex-1 bg-card"
         />
         <div className="flex gap-2">
@@ -63,12 +63,12 @@ export function DashboardPage() {
             </SelectContent>
           </Select>
           <Button type="submit" disabled={createGoal.isPending || !title.trim()}>
-            เพิ่ม
+            Add
           </Button>
         </div>
       </form>
 
-      {roots.length === 0 && <p className="text-muted-foreground text-sm">ยังไม่มีเป้าหมาย เริ่มเพิ่มเป้าแรกได้เลย</p>}
+      {roots.length === 0 && <p className="text-muted-foreground text-sm">No goals yet — add your first one above.</p>}
 
       <ul className="space-y-3">
         {roots.map(goal => (

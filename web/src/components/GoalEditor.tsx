@@ -64,7 +64,7 @@ export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => v
             onChange={() => update.mutate({ status: goal.status === 'done' ? 'active' : 'done' })}
             className="accent-primary"
           />
-          ทำเสร็จแล้ว (เป้าย่อยของ checklist นับจากสถานะ done)
+          Completed (checklist parents count children by done status)
         </label>
       )
     default:
@@ -76,7 +76,7 @@ export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => v
             onChange={() => update.mutate({ status: goal.status === 'done' ? 'active' : 'done' })}
             className="accent-primary"
           />
-          ปิดเป้านี้ (done)
+          Mark as done
         </label>
       ) : null
   }
@@ -92,10 +92,10 @@ function AddStageForm({ goal, onChanged }: { goal: Goal; onChanged: () => void }
     <li>
       <form onSubmit={e => { e.preventDefault(); if (title.trim()) update.mutate() }} className="flex gap-1 mt-1">
         <input
-          value={title} onChange={e => setTitle(e.target.value)} placeholder="เพิ่มขั้นตอน…"
+          value={title} onChange={e => setTitle(e.target.value)} placeholder="Add a step…"
           className="flex-1 px-2 py-1 rounded border border-border text-xs"
         />
-        <button type="submit" className="text-xs text-primary px-2">เพิ่ม</button>
+        <button type="submit" className="text-xs text-primary px-2">Add</button>
       </form>
     </li>
   )
@@ -114,7 +114,7 @@ export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: (
       className="mt-3 flex gap-1"
     >
       <input
-        value={title} onChange={e => setTitle(e.target.value)} placeholder="ชื่อเป้าย่อย…" autoFocus
+        value={title} onChange={e => setTitle(e.target.value)} placeholder="Subgoal title…" autoFocus
         className="flex-1 px-2 py-1 rounded border border-input bg-card text-xs"
       />
       <select value={progressType} onChange={e => setProgressType(e.target.value as ProgressType)} className="text-xs border border-input bg-card rounded px-1">
@@ -126,7 +126,7 @@ export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: (
         <option value="daily">daily</option>
         <option value="weekly">weekly</option>
       </select>
-      <button type="submit" className="text-xs text-primary px-2">เพิ่ม</button>
+      <button type="submit" className="text-xs text-primary px-2">Add</button>
     </form>
   )
 }

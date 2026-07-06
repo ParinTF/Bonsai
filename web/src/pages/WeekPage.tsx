@@ -14,15 +14,15 @@ export function WeekPage() {
     },
   })
 
-  if (isLoading) return <p className="text-muted-foreground">กำลังโหลด…</p>
-  if (error) return <p className="text-destructive">โหลดไม่สำเร็จ: {(error as Error).message}</p>
+  if (isLoading) return <p className="text-muted-foreground">Loading…</p>
+  if (error) return <p className="text-destructive">Failed to load: {(error as Error).message}</p>
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-foreground">สัปดาห์นี้</h1>
+      <h1 className="text-xl font-semibold text-foreground">This Week</h1>
 
       {(goals ?? []).length === 0 && (
-        <p className="text-muted-foreground text-sm">ไม่มีเป้ารายสัปดาห์ที่ active (progressType = weekly)</p>
+        <p className="text-muted-foreground text-sm">No active weekly goals (progressType = weekly).</p>
       )}
 
       <ul className="space-y-3">
@@ -36,19 +36,19 @@ export function WeekPage() {
                   disabled={record.isPending}
                   className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 disabled:opacity-50"
                 >
-                  ✓ ผ่าน
+                  ✓ Pass
                 </button>
                 <button
                   onClick={() => record.mutate({ id: goal.id, result: 'fail' })}
                   disabled={record.isPending}
                   className="px-3 py-1 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 disabled:opacity-50"
                 >
-                  ✗ ไม่ผ่าน
+                  ✗ Fail
                 </button>
               </div>
             </div>
             <ProgressBar value={goal.progress} />
-            <p className="text-xs text-muted-foreground">อัตราผ่าน 4 สัปดาห์ล่าสุด</p>
+            <p className="text-xs text-muted-foreground">Pass rate over the last 4 weeks</p>
           </li>
         ))}
       </ul>

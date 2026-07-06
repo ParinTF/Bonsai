@@ -29,10 +29,10 @@ export function GoalDetailPage() {
     },
   })
 
-  if (isLoading) return <p className="text-muted-foreground">กำลังโหลด…</p>
+  if (isLoading) return <p className="text-muted-foreground">Loading…</p>
 
   const goal = goals?.find(g => g.id === id)
-  if (!goal) return <p className="text-destructive">ไม่พบเป้าหมายนี้</p>
+  if (!goal) return <p className="text-destructive">Goal not found</p>
 
   // Subtree of this root goal only, non-archived
   const subtree = (goals ?? []).filter(
@@ -48,7 +48,7 @@ export function GoalDetailPage() {
       await goalsApi.breakdown(goal.title, undefined, goal.id)
       invalidate()
     } catch (e) {
-      setAiError(e instanceof Error ? e.message : 'AI breakdown ล้มเหลว')
+      setAiError(e instanceof Error ? e.message : 'AI breakdown failed')
     } finally {
       setAiBusy(false)
     }
@@ -57,21 +57,21 @@ export function GoalDetailPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← กลับ</Link>
+        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Back</Link>
         <h1 className="text-xl font-bold flex-1 min-w-40 truncate">{goal.title}</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" onClick={() => setAddingChild(v => !v)}>
-            <Plus size={15} /> เพิ่มเป้าย่อย
+            <Plus size={15} /> Add subgoal
           </Button>
           <Button
             size="sm" onClick={breakdownWithAi} disabled={aiBusy}
             className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
-            <Sparkles size={15} /> {aiBusy ? 'กำลังแตกเป้า…' : 'แตกเป้าด้วย AI'}
+            <Sparkles size={15} /> {aiBusy ? 'Breaking down…' : 'Break down with AI'}
           </Button>
           <Button
             size="sm" variant="ghost"
-            onClick={() => { if (confirm('ลบเป้าหมายนี้และเป้าย่อยทั้งหมด?')) removeGoal.mutate(goal.id) }}
+            onClick={() => { if (confirm('Delete this goal and its whole subtree?')) removeGoal.mutate(goal.id) }}
             className="text-destructive hover:bg-destructive/10"
           >
             <Trash2 size={15} />
@@ -84,7 +84,7 @@ export function GoalDetailPage() {
       {addingChild && (
         <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
           <p className="text-sm font-medium mb-2">
-            เพิ่มเป้าย่อยใต้ "{selected?.title ?? goal.title}"
+            Add a subgoal under "{selected?.title ?? goal.title}"
           </p>
           <AddChildForm
             parentId={selected?.id ?? goal.id}
@@ -106,7 +106,7 @@ export function GoalDetailPage() {
               {selected.id !== goal.id && (
                 <Button
                   size="sm" variant="ghost"
-                  onClick={() => { if (confirm(`ลบ "${selected.title}" และเป้าย่อยทั้งหมด?`)) removeGoal.mutate(selected.id) }}
+                  onClick={() => { if (confirm(`Delete "${selected.title}" and its subtree?`)) removeGoal.mutate(selected.id) }}
                   className="text-destructive hover:bg-destructive/10"
                 >
                   <Trash2 size={14} />
@@ -123,7 +123,7 @@ export function GoalDetailPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        ลาก node เพื่อจัดตำแหน่ง (บันทึกอัตโนมัติ) · คลิก node เพื่อแก้ไข progress
+        Drag nodes to arrange (saved automatically) · Click a node to edit its progress
       </p>
     </div>
   )

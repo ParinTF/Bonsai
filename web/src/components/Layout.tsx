@@ -15,17 +15,17 @@ export function Layout() {
       <header className="bg-card/80 backdrop-blur border-b border-border sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-1 sm:gap-2">
           <span className="font-heading text-lg font-bold text-primary mr-2 sm:mr-4">🌱 Bonsai</span>
-          <NavLink to="/" end className={linkClass}>เป้าหมาย</NavLink>
-          <NavLink to="/today" className={linkClass}>วันนี้</NavLink>
-          <NavLink to="/week" className={linkClass}>สัปดาห์นี้</NavLink>
+          <NavLink to="/" end className={linkClass}>Goals</NavLink>
+          <NavLink to="/today" className={linkClass}>Today</NavLink>
+          <NavLink to="/week" className={linkClass}>This Week</NavLink>
           <Button
             variant="ghost" size="sm"
             onClick={() => { setToken(null); navigate('/login') }}
             className="ml-auto text-muted-foreground"
-            aria-label="ออกจากระบบ"
+            aria-label="Log out"
           >
             <LogOut className="sm:hidden" size={16} />
-            <span className="hidden sm:inline">ออกจากระบบ</span>
+            <span className="hidden sm:inline">Log out</span>
           </Button>
         </div>
       </header>

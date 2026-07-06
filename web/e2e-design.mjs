@@ -37,7 +37,7 @@ async function shoot(viewport, prefix) {
   await page.waitForSelector('.react-flow__node')
   await page.waitForTimeout(1200)
   await page.screenshot({ path: `${shots}${prefix}-graph.png` })
-  await page.click('a:has-text("วันนี้")')
+  await page.click('a:has-text("Today")')
   await page.waitForTimeout(700)
   await page.screenshot({ path: `${shots}${prefix}-today.png` })
   await page.close()

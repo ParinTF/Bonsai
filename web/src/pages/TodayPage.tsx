@@ -13,20 +13,20 @@ export function TodayPage() {
     },
   })
 
-  if (isLoading) return <p className="text-muted-foreground">กำลังโหลด…</p>
-  if (error) return <p className="text-destructive">โหลดไม่สำเร็จ: {(error as Error).message}</p>
+  if (isLoading) return <p className="text-muted-foreground">Loading…</p>
+  if (error) return <p className="text-destructive">Failed to load: {(error as Error).message}</p>
 
   const habits = data?.habits ?? []
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">วันนี้</h1>
+        <h1 className="text-xl font-semibold text-foreground">Today</h1>
         <p className="text-sm text-muted-foreground">{data?.date}</p>
       </div>
 
       {habits.length === 0 && (
-        <p className="text-muted-foreground text-sm">ยังไม่มี habit (สร้างเป้าที่ progressType = daily)</p>
+        <p className="text-muted-foreground text-sm">No habits yet (create a goal with progressType = daily).</p>
       )}
 
       <ul className="space-y-2">
@@ -40,7 +40,7 @@ export function TodayPage() {
             <span className={`flex-1 text-sm ${checkedToday ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
               {goal.title}
             </span>
-            <span className="text-sm text-accent font-medium" title="streak ปัจจุบัน">
+            <span className="text-sm text-accent font-medium" title="Current streak">
               🔥 {streak}
             </span>
           </li>
