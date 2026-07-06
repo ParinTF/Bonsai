@@ -30,7 +30,7 @@ export function CalendarHeatmap() {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm p-4">
       <p className="text-sm font-medium mb-3">{monthName}</p>
-      <div className="grid grid-cols-7 gap-1.5 max-w-xs">
+      <div className="grid grid-cols-7 gap-1.5">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
           <span key={i} className="text-[10px] text-muted-foreground text-center">{d}</span>
         ))}
@@ -43,7 +43,7 @@ export function CalendarHeatmap() {
             <div
               key={date}
               title={`${date}: ${doneByDate.get(date) ?? 0}/${data.habitCount} habits`}
-              className={`aspect-square rounded-md flex items-center justify-center text-[10px] tabular-nums
+              className={`h-10 sm:h-12 rounded-md flex items-center justify-center text-xs tabular-nums
                 ${date === todayStr ? 'ring-2 ring-ring' : ''}
                 ${isFuture ? 'text-muted-foreground/40' : fraction === 1 ? 'text-primary-foreground' : 'text-foreground'}`}
               style={{
