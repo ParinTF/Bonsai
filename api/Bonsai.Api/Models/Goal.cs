@@ -65,5 +65,10 @@ public class Goal
     public double Progress { get; set; }
 
     public int Order { get; set; }
+
+    /// <summary>Node position on the graph canvas; null until the user first drags it.</summary>
+    public double? PositionX { get; set; }
+    public double? PositionY { get; set; }
+
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

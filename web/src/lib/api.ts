@@ -70,6 +70,8 @@ export interface Goal {
   numeric: NumericProgress | null
   progress: number
   order: number
+  positionX: number | null
+  positionY: number | null
   updatedAt: string
 }
 
@@ -101,6 +103,8 @@ export const goalsApi = {
   update: (id: string, data: Partial<Pick<Goal, 'title' | 'status' | 'progressType' | 'stages' | 'numeric' | 'progress' | 'order'>>) =>
     api<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: string) => api<void>(`/goals/${id}`, { method: 'DELETE' }),
+  position: (id: string, x: number, y: number) =>
+    api<{ id: string; x: number; y: number }>(`/goals/${id}/position`, { method: 'PATCH', body: JSON.stringify({ x, y }) }),
   weeklyAttempt: (id: string, result: 'pass' | 'fail') =>
     api<{ goalId: string; weekOf: string; result: string }>(`/goals/${id}/weekly-attempt`, { method: 'POST', body: JSON.stringify({ result }) }),
   breakdown: (title: string, context?: string, parentId?: string) =>

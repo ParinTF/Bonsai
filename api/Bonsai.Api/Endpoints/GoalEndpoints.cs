@@ -93,6 +93,17 @@ public static class GoalEndpoints
             return Results.Ok(all.First(g => g.Id == id));
         });
 
+        // Position-only update, separate from the main PATCH so canvas drags
+        // can't race with progress edits.
+        group.MapPatch("/{id}/position", async (string id, PositionRequest req, ClaimsPrincipal user, MongoContext db) =>
+        {
+            var userId = user.UserId();
+            var result = await db.Goals.UpdateOneAsync(
+                g => g.Id == id && g.UserId == userId,
+                Builders<Goal>.Update.Set(g => g.PositionX, req.X).Set(g => g.PositionY, req.Y));
+            return result.MatchedCount == 0 ? Results.NotFound() : Results.Ok(new { id, x = req.X, y = req.Y });
+        });
+
         group.MapDelete("/{id}", async (string id, ClaimsPrincipal user, MongoContext db) =>
         {
             var userId = user.UserId();
@@ -147,3 +158,4 @@ public static class GoalEndpoints
 }
 
 public record WeeklyAttemptRequest(string Result, string? WeekOf);
+public record PositionRequest(double X, double Y);
