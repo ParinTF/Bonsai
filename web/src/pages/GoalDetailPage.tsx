@@ -11,6 +11,7 @@ export function GoalDetailPage() {
   const { data: goals, isLoading } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list })
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState('')
+  const [addingChild, setAddingChild] = useState(false)
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['goals'] })
 
@@ -50,6 +51,12 @@ export function GoalDetailPage() {
         <Link to="/" className="text-sm text-gray-400 hover:text-gray-600">← กลับ</Link>
         <h1 className="text-xl font-semibold text-gray-800 flex-1">{goal.title}</h1>
         <button
+          onClick={() => setAddingChild(v => !v)}
+          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+        >
+          + เพิ่มเป้าย่อย
+        </button>
+        <button
           onClick={breakdownWithAi} disabled={aiBusy}
           className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
         >
@@ -64,6 +71,13 @@ export function GoalDetailPage() {
       </div>
 
       {aiError && <p className="text-sm text-red-600">{aiError}</p>}
+
+      {addingChild && (
+        <div className="bg-white rounded-xl border border-emerald-200 p-4">
+          <p className="text-sm font-medium text-gray-700 mb-2">เพิ่มเป้าย่อยใต้ "{goal.title}"</p>
+          <AddChildForm parentId={goal.id} onDone={() => { setAddingChild(false); invalidate() }} />
+        </div>
+      )}
 
       <GoalNode goal={goal} childrenOf={childrenOf} onChanged={invalidate} onDelete={gid => removeGoal.mutate(gid)} depth={0} />
     </div>
