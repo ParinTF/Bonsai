@@ -49,6 +49,26 @@ await page.mouse.up()
 await page.waitForTimeout(1000)
 await page.screenshot({ path: shots + 'g3-dragged.png' })
 
+// Regression: click empty canvas after dragging — node must NOT jump back
+const posAfterDrag = await node.boundingBox()
+await page.mouse.click(box.x - 150, box.y + 300) // empty pane area
+await page.waitForTimeout(600)
+await page.mouse.click(box.x - 150, box.y + 320) // click empty again
+await page.waitForTimeout(600)
+const posAfterPaneClick = await node.boundingBox()
+const dx = Math.abs(posAfterPaneClick.x - posAfterDrag.x)
+const dy = Math.abs(posAfterPaneClick.y - posAfterDrag.y)
+console.log('drift after pane click:', dx.toFixed(1), dy.toFixed(1))
+if (dx > 2 || dy > 2) { console.error('NODE JUMPED AFTER PANE CLICK'); process.exit(1) }
+
+// Regression: selecting another node must not move the dragged one either
+await page.click('.react-flow__node:has-text("วิ่งทุกวัน")')
+await page.waitForTimeout(600)
+const posAfterSelect = await node.boundingBox()
+if (Math.abs(posAfterSelect.x - posAfterDrag.x) > 2 || Math.abs(posAfterSelect.y - posAfterDrag.y) > 2) {
+  console.error('NODE JUMPED AFTER SELECTING ANOTHER NODE'); process.exit(1)
+}
+
 // Verify persistence via the API
 const goals = await fetch('http://localhost:5264/goals', {
   headers: { Authorization: 'Bearer ' + token },

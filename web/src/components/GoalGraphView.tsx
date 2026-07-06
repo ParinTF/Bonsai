@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Background,
   Controls,
@@ -39,11 +40,13 @@ const typeStyle: Record<ProgressType, { border: string; badge: string; Icon: typ
   weekly: { border: 'border-violet-300', badge: 'bg-violet-100 text-violet-700', Icon: CalendarCheck },
 }
 
-type GoalNodeData = { goal: Goal; selected: boolean }
+// Selection highlight comes from React Flow's own `selected` prop, NOT from
+// node data — so selecting/deselecting never rebuilds node positions.
+type GoalNodeData = { goal: Goal }
 type GoalFlowNode = Node<GoalNodeData, 'goal'>
 
-function GoalNodeCard({ data }: NodeProps<GoalFlowNode>) {
-  const { goal, selected } = data
+function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
+  const { goal } = data
   const { border, badge, Icon } = typeStyle[goal.progressType]
   const done = goal.status === 'done'
   return (
@@ -79,19 +82,30 @@ function GoalNodeCard({ data }: NodeProps<GoalFlowNode>) {
 
 const nodeTypes = { goal: GoalNodeCard }
 
-/** Dagre top-down tree layout for goals that don't have a saved position yet. */
-function autoLayout(goals: Goal[]): Map<string, { x: number; y: number }> {
+/**
+ * Dagre top-down layout — computed ONLY for goals whose position is null.
+ * Goals with a saved position keep it and are excluded from the layout graph
+ * (they still don't affect where unplaced nodes go, which keeps the
+ * computation deterministic across refetches).
+ */
+function layoutUnplaced(goals: Goal[]): Map<string, { x: number; y: number }> {
+  const unplaced = goals.filter(g => g.positionX == null || g.positionY == null)
+  if (unplaced.length === 0) return new Map()
+
   const g = new dagre.graphlib.Graph()
   g.setGraph({ rankdir: 'TB', nodesep: 36, ranksep: 64 })
   g.setDefaultEdgeLabel(() => ({}))
+  // Layout over the whole tree so unplaced nodes land in sensible spots
+  // relative to their siblings, but only unplaced nodes consume the result.
   const ids = new Set(goals.map(x => x.id))
   for (const goal of goals) g.setNode(goal.id, { width: NODE_W, height: NODE_H })
   for (const goal of goals) {
     if (goal.parentId && ids.has(goal.parentId)) g.setEdge(goal.parentId, goal.id)
   }
   dagre.layout(g)
+
   const out = new Map<string, { x: number; y: number }>()
-  for (const goal of goals) {
+  for (const goal of unplaced) {
     const n = g.node(goal.id)
     out.set(goal.id, { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 })
   }
@@ -103,7 +117,11 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
   selectedId: string | null
   onSelect: (id: string) => void
 }) {
-  const layout = useMemo(() => autoLayout(goals), [goals])
+  const qc = useQueryClient()
+
+  // Recomputed only when the goals data itself changes (query refetch),
+  // never on selection changes or unrelated re-renders.
+  const layout = useMemo(() => layoutUnplaced(goals), [goals])
 
   const buildNodes = useCallback((): GoalFlowNode[] =>
     goals.map(goal => ({
@@ -113,19 +131,22 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         goal.positionX != null && goal.positionY != null
           ? { x: goal.positionX, y: goal.positionY }
           : layout.get(goal.id)!,
-      data: { goal, selected: goal.id === selectedId },
+      data: { goal },
+      selected: goal.id === selectedId,
     })), [goals, layout, selectedId])
 
   const [nodes, setNodes] = useState<GoalFlowNode[]>(buildNodes)
 
-  // Refresh node data (progress, selection) when the query refetches,
-  // but keep any in-flight drag positions React Flow is tracking.
+  // Sync nodes when goals DATA changes (refetch after an edit). Positions are
+  // taken from the query cache, which onNodeDragStop keeps up to date — so a
+  // rebuild can never snap a dragged node back. In-flight drags keep their
+  // live position.
   useEffect(() => {
     setNodes(prev => {
       const prevById = new Map(prev.map(n => [n.id, n]))
       return buildNodes().map(n => {
         const old = prevById.get(n.id)
-        return old && old.dragging ? { ...n, position: old.position } : n
+        return old?.dragging ? { ...n, position: old.position, selected: n.selected } : n
       })
     })
   }, [buildNodes])
@@ -148,6 +169,14 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
     [],
   )
 
+  const persistPosition = useCallback((goalId: string, x: number, y: number) => {
+    // Write into the query cache FIRST so any rebuild uses the new position,
+    // then persist to the server in the background.
+    qc.setQueryData<Goal[]>(['goals'], old =>
+      old?.map(g => (g.id === goalId ? { ...g, positionX: x, positionY: y } : g)))
+    goalsApi.position(goalId, x, y).catch(() => {})
+  }, [qc])
+
   return (
     <div className="h-[560px] bg-white rounded-xl border border-gray-200 overflow-hidden">
       <ReactFlow
@@ -156,9 +185,7 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onNodeClick={(_, node) => onSelect(node.id)}
-        onNodeDragStop={(_, node) => {
-          goalsApi.position(node.id, node.position.x, node.position.y).catch(() => {})
-        }}
+        onNodeDragStop={(_, node) => persistPosition(node.id, node.position.x, node.position.y)}
         fitView
         proOptions={{ hideAttribution: true }}
       >
