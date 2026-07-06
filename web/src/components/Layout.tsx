@@ -1,30 +1,35 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 import { setToken } from '../lib/api'
+import { Button } from '@/components/ui/button'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-    isActive ? 'bg-emerald-100 text-emerald-800' : 'text-gray-600 hover:bg-gray-100'
+  `px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+    isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
   }`
 
 export function Layout() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
-          <span className="text-lg font-semibold text-emerald-700 mr-4">🌱 Bonsai</span>
+    <div className="min-h-screen bg-background">
+      <header className="bg-card/80 backdrop-blur border-b border-border sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-1 sm:gap-2">
+          <span className="font-heading text-lg font-bold text-primary mr-2 sm:mr-4">🌱 Bonsai</span>
           <NavLink to="/" end className={linkClass}>เป้าหมาย</NavLink>
           <NavLink to="/today" className={linkClass}>วันนี้</NavLink>
           <NavLink to="/week" className={linkClass}>สัปดาห์นี้</NavLink>
-          <button
+          <Button
+            variant="ghost" size="sm"
             onClick={() => { setToken(null); navigate('/login') }}
-            className="ml-auto text-sm text-gray-400 hover:text-gray-600"
+            className="ml-auto text-muted-foreground"
+            aria-label="ออกจากระบบ"
           >
-            ออกจากระบบ
-          </button>
+            <LogOut className="sm:hidden" size={16} />
+            <span className="hidden sm:inline">ออกจากระบบ</span>
+          </Button>
         </div>
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-6">
+      <main className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <Outlet />
       </main>
     </div>

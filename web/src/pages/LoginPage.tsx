@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi, setToken } from '../lib/api'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -28,33 +30,28 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <form onSubmit={submit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold text-emerald-700 text-center">🌱 Bonsai</h1>
-        <p className="text-sm text-gray-500 text-center">
-          {mode === 'login' ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่'}
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <form onSubmit={submit} className="bg-card rounded-2xl shadow-lg shadow-primary/5 border border-border p-6 sm:p-8 w-full max-w-sm space-y-4">
+        <h1 className="font-heading text-3xl font-bold text-primary text-center">🌱 Bonsai</h1>
+        <p className="text-sm text-muted-foreground text-center">
+          {mode === 'login' ? 'เข้าสู่ระบบเพื่อดูแลเป้าหมายของคุณ' : 'สร้างบัญชีใหม่'}
         </p>
-        <input
+        <Input
           type="email" required placeholder="อีเมล" value={email}
           onChange={e => setEmail(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
-        <input
+        <Input
           type="password" required minLength={8} placeholder="รหัสผ่าน (อย่างน้อย 8 ตัว)" value={password}
           onChange={e => setPassword(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit" disabled={busy}
-          className="w-full py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
-        >
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={busy} className="w-full">
           {busy ? 'กำลังดำเนินการ…' : mode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
-        </button>
+        </Button>
         <button
           type="button"
           onClick={() => setMode(m => (m === 'login' ? 'register' : 'login'))}
-          className="w-full text-sm text-emerald-600 hover:underline"
+          className="w-full text-sm text-accent hover:underline"
         >
           {mode === 'login' ? 'ยังไม่มีบัญชี? สมัครสมาชิก' : 'มีบัญชีแล้ว? เข้าสู่ระบบ'}
         </button>

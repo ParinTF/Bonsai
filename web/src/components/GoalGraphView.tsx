@@ -51,18 +51,18 @@ function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
   const done = goal.status === 'done'
   return (
     <div
-      className={`w-[200px] bg-white rounded-xl border-2 shadow-md px-3 pt-2.5 pb-2 cursor-pointer transition-colors ${
-        selected ? 'border-emerald-500 ring-2 ring-emerald-200' : `${border} hover:border-emerald-400`
+      className={`w-[200px] bg-card rounded-xl border-2 shadow-[0_2px_10px_-2px_rgb(45_74_62/0.12)] px-3 pt-2.5 pb-2 cursor-pointer transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgb(45_74_62/0.25)] hover:-translate-y-0.5 ${
+        selected ? 'border-primary ring-2 ring-primary/25' : `${border} hover:border-primary/60`
       }`}
     >
       <Handle type="target" position={Position.Top} className="!bg-gray-300" />
       <div className="flex items-center gap-1.5 mb-1.5">
         {done ? (
-          <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+          <CheckCircle size={14} className="text-primary shrink-0" />
         ) : (
-          <Icon size={14} className="text-gray-400 shrink-0" />
+          <Icon size={14} className="text-muted-foreground shrink-0" />
         )}
-        <span className={`text-[13px] font-medium truncate flex-1 ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+        <span className={`text-[13px] font-medium truncate flex-1 ${done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
           {goal.title}
         </span>
         <span className={`text-[9px] px-1.5 py-0.5 rounded-full shrink-0 ${badge}`}>
@@ -70,10 +70,10 @@ function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${goal.progress}%` }} />
+        <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-[width] duration-700 ease-out" style={{ width: `${goal.progress}%` }} />
         </div>
-        <span className="text-[9px] text-gray-500 w-6 text-right">{Math.round(goal.progress)}%</span>
+        <span className="text-[9px] text-muted-foreground w-6 text-right">{Math.round(goal.progress)}%</span>
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-gray-300" />
     </div>
@@ -178,7 +178,7 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
   }, [qc])
 
   return (
-    <div className="h-[560px] bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="h-[420px] sm:h-[560px] bg-card rounded-xl border border-border shadow-sm overflow-hidden">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -189,7 +189,7 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         fitView
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={20} color="#e5e7eb" />
+        <Background gap={20} color="#d8d2c2" />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

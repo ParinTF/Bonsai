@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { goalsApi } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { GoalGraphView } from '../components/GoalGraphView'
 import { AddChildForm, GoalEditor } from '../components/GoalEditor'
+import { Button } from '@/components/ui/button'
 
 export function GoalDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -27,10 +29,10 @@ export function GoalDetailPage() {
     },
   })
 
-  if (isLoading) return <p className="text-gray-400">กำลังโหลด…</p>
+  if (isLoading) return <p className="text-muted-foreground">กำลังโหลด…</p>
 
   const goal = goals?.find(g => g.id === id)
-  if (!goal) return <p className="text-red-600">ไม่พบเป้าหมายนี้</p>
+  if (!goal) return <p className="text-destructive">ไม่พบเป้าหมายนี้</p>
 
   // Subtree of this root goal only, non-archived
   const subtree = (goals ?? []).filter(
@@ -54,34 +56,34 @@ export function GoalDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-sm text-gray-400 hover:text-gray-600">← กลับ</Link>
-        <h1 className="text-xl font-semibold text-gray-800 flex-1">{goal.title}</h1>
-        <button
-          onClick={() => setAddingChild(v => !v)}
-          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
-        >
-          + เพิ่มเป้าย่อย
-        </button>
-        <button
-          onClick={breakdownWithAi} disabled={aiBusy}
-          className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
-        >
-          {aiBusy ? 'กำลังแตกเป้า…' : '✨ แตกเป้าด้วย AI'}
-        </button>
-        <button
-          onClick={() => { if (confirm('ลบเป้าหมายนี้และเป้าย่อยทั้งหมด?')) removeGoal.mutate(goal.id) }}
-          className="px-3 py-1.5 rounded-lg text-sm text-red-500 hover:bg-red-50"
-        >
-          ลบ
-        </button>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← กลับ</Link>
+        <h1 className="text-xl font-bold flex-1 min-w-40 truncate">{goal.title}</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" onClick={() => setAddingChild(v => !v)}>
+            <Plus size={15} /> เพิ่มเป้าย่อย
+          </Button>
+          <Button
+            size="sm" onClick={breakdownWithAi} disabled={aiBusy}
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            <Sparkles size={15} /> {aiBusy ? 'กำลังแตกเป้า…' : 'แตกเป้าด้วย AI'}
+          </Button>
+          <Button
+            size="sm" variant="ghost"
+            onClick={() => { if (confirm('ลบเป้าหมายนี้และเป้าย่อยทั้งหมด?')) removeGoal.mutate(goal.id) }}
+            className="text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 size={15} />
+          </Button>
+        </div>
       </div>
 
-      {aiError && <p className="text-sm text-red-600">{aiError}</p>}
+      {aiError && <p className="text-sm text-destructive">{aiError}</p>}
 
       {addingChild && (
-        <div className="bg-white rounded-xl border border-emerald-200 p-4">
-          <p className="text-sm font-medium text-gray-700 mb-2">
+        <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
+          <p className="text-sm font-medium mb-2">
             เพิ่มเป้าย่อยใต้ "{selected?.title ?? goal.title}"
           </p>
           <AddChildForm
@@ -94,24 +96,25 @@ export function GoalDetailPage() {
       <GoalGraphView goals={subtree} selectedId={selectedId} onSelect={setSelectedId} />
 
       {selected && (
-        <div className="bg-white rounded-xl border border-emerald-200 p-4">
+        <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div>
-              <span className="text-sm font-medium text-gray-800">{selected.title}</span>
-              <span className="ml-2 text-xs text-gray-400">{selected.progressType}</span>
+            <div className="min-w-0">
+              <span className="text-sm font-medium">{selected.title}</span>
+              <span className="ml-2 text-xs text-muted-foreground">{selected.progressType}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 shrink-0">
               {selected.id !== goal.id && (
-                <button
+                <Button
+                  size="sm" variant="ghost"
                   onClick={() => { if (confirm(`ลบ "${selected.title}" และเป้าย่อยทั้งหมด?`)) removeGoal.mutate(selected.id) }}
-                  className="text-xs text-red-400 hover:bg-red-50 px-2 py-1 rounded"
+                  className="text-destructive hover:bg-destructive/10"
                 >
-                  ลบ
-                </button>
+                  <Trash2 size={14} />
+                </Button>
               )}
-              <button onClick={() => setSelectedId(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1">
-                ✕ ปิด
-              </button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)} className="text-muted-foreground">
+                <X size={14} />
+              </Button>
             </div>
           </div>
           <ProgressBar value={selected.progress} />
@@ -119,7 +122,7 @@ export function GoalDetailPage() {
         </div>
       )}
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted-foreground">
         ลาก node เพื่อจัดตำแหน่ง (บันทึกอัตโนมัติ) · คลิก node เพื่อแก้ไข progress
       </p>
     </div>

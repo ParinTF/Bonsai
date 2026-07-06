@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { goalsApi, type ProgressType } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 
 const progressTypeLabels: Record<ProgressType, string> = {
   rollup: 'เฉลี่ยจากเป้าย่อย',
@@ -28,54 +33,55 @@ export function DashboardPage() {
     },
   })
 
-  if (isLoading) return <p className="text-gray-400">กำลังโหลด…</p>
-  if (error) return <p className="text-red-600">โหลดไม่สำเร็จ: {(error as Error).message}</p>
+  if (isLoading) return <p className="text-muted-foreground">กำลังโหลด…</p>
+  if (error) return <p className="text-destructive">โหลดไม่สำเร็จ: {(error as Error).message}</p>
 
   const roots = (goals ?? []).filter(g => g.parentId === null && g.status !== 'archived')
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-800">เป้าหมายของฉัน</h1>
+      <h1 className="text-2xl font-bold">เป้าหมายของฉัน</h1>
 
       <form
         onSubmit={e => { e.preventDefault(); if (title.trim()) createGoal.mutate() }}
-        className="flex gap-2"
+        className="flex flex-col sm:flex-row gap-2"
       >
-        <input
+        <Input
           value={title} onChange={e => setTitle(e.target.value)}
           placeholder="เพิ่มเป้าหมายใหญ่…"
-          className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="flex-1 bg-card"
         />
-        <select
-          value={progressType} onChange={e => setProgressType(e.target.value as ProgressType)}
-          className="px-2 py-2 rounded-lg border border-gray-300 text-sm bg-white"
-        >
-          {Object.entries(progressTypeLabels).map(([v, label]) => (
-            <option key={v} value={v}>{label}</option>
-          ))}
-        </select>
-        <button
-          type="submit" disabled={createGoal.isPending || !title.trim()}
-          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
-        >
-          เพิ่ม
-        </button>
+        <div className="flex gap-2">
+          <Select value={progressType} onValueChange={v => setProgressType(v as ProgressType)}>
+            <SelectTrigger className="flex-1 sm:w-44 bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(progressTypeLabels).map(([v, label]) => (
+                <SelectItem key={v} value={v}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="submit" disabled={createGoal.isPending || !title.trim()}>
+            เพิ่ม
+          </Button>
+        </div>
       </form>
 
-      {roots.length === 0 && <p className="text-gray-400 text-sm">ยังไม่มีเป้าหมาย เริ่มเพิ่มเป้าแรกได้เลย</p>}
+      {roots.length === 0 && <p className="text-muted-foreground text-sm">ยังไม่มีเป้าหมาย เริ่มเพิ่มเป้าแรกได้เลย</p>}
 
       <ul className="space-y-3">
         {roots.map(goal => (
           <li key={goal.id}>
             <Link
               to={`/goals/${goal.id}`}
-              className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-emerald-300 transition-colors"
+              className="block bg-card rounded-xl border border-border p-4 shadow-sm hover:shadow-md hover:border-primary/40 transition-all"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className={`font-medium ${goal.status === 'done' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <span className={`font-medium ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
                   {goal.title}
                 </span>
-                <span className="text-xs text-gray-400">{progressTypeLabels[goal.progressType]}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{progressTypeLabels[goal.progressType]}</span>
               </div>
               <ProgressBar value={goal.progress} />
             </Link>
