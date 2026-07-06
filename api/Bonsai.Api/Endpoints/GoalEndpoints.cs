@@ -27,8 +27,24 @@ public static class GoalEndpoints
 
         group.MapGet("/this-week", async (ClaimsPrincipal user, MongoContext db, ProgressService progress) =>
         {
-            var all = await progress.ComputeTreeAsync(user.UserId());
-            return Results.Ok(all.Where(g => g.ProgressType == ProgressTypes.Weekly && g.Status == GoalStatuses.Active));
+            var userId = user.UserId();
+            var all = await progress.ComputeTreeAsync(userId);
+            var weekly = all.Where(g => g.ProgressType == ProgressTypes.Weekly && g.Status == GoalStatuses.Active).ToList();
+
+            var ids = weekly.Select(g => g.Id).ToList();
+            var attempts = await db.WeeklyAttempts
+                .Find(a => a.UserId == userId && ids.Contains(a.GoalId))
+                .ToListAsync();
+
+            return Results.Ok(weekly.Select(g => new
+            {
+                goal = g,
+                attempts = attempts
+                    .Where(a => a.GoalId == g.Id)
+                    .OrderByDescending(a => a.WeekOf)
+                    .Take(4)
+                    .Select(a => new { weekOf = a.WeekOf, result = a.Result }),
+            }));
         });
 
         group.MapPost("/", async (CreateGoalRequest req, ClaimsPrincipal user, MongoContext db) =>

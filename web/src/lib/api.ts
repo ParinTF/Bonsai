@@ -86,6 +86,16 @@ export interface TodayResponse {
   habits: HabitToday[]
 }
 
+export interface WeeklyAttemptSummary {
+  weekOf: string
+  result: 'pass' | 'fail'
+}
+
+export interface WeekItem {
+  goal: Goal
+  attempts: WeeklyAttemptSummary[]
+}
+
 // ---- Endpoints ----
 
 export const authApi = {
@@ -97,7 +107,7 @@ export const authApi = {
 
 export const goalsApi = {
   list: () => api<Goal[]>('/goals'),
-  thisWeek: () => api<Goal[]>('/goals/this-week'),
+  thisWeek: () => api<WeekItem[]>('/goals/this-week'),
   create: (data: { title: string; parentId?: string | null; progressType: ProgressType; stages?: Stage[]; numeric?: NumericProgress }) =>
     api<Goal>('/goals', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Pick<Goal, 'title' | 'status' | 'progressType' | 'stages' | 'numeric' | 'progress' | 'order'>>) =>
