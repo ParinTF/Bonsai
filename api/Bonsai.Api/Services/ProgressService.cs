@@ -4,15 +4,8 @@ using MongoDB.Driver;
 namespace Bonsai.Api.Services;
 
 /// <summary>
-/// Computes Goal.Progress (0-100) for every progressType.
-///
-/// - stages:    % of stages marked done
-/// - numeric:   current / target
-/// - checklist: % of direct children with status "done"
-/// - manual:    stored value, untouched
-/// - rollup:    average progress of direct (non-archived) children
-/// - daily:     % of days with a done checkin over the last 7 days
-/// - weekly:    % of "pass" results over the last 4 recorded weeks
+/// Loads a user's goals and fills in Goal.Progress for every progressType.
+/// The math itself lives in <see cref="ProgressCalculator"/>.
 /// </summary>
 public class ProgressService(MongoContext db)
 {
@@ -21,7 +14,6 @@ public class ProgressService(MongoContext db)
         var goals = await db.Goals.Find(g => g.UserId == userId).SortBy(g => g.Order).ToListAsync();
         if (goals.Count == 0) return goals;
 
-        var goalIds = goals.Select(g => g.Id).ToList();
         var since = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-6).ToString("yyyy-MM-dd");
         var checkins = await db.Checkins
             .Find(c => c.UserId == userId && c.Done && string.Compare(c.Date, since) >= 0)
@@ -39,12 +31,12 @@ public class ProgressService(MongoContext db)
         {
             goal.Progress = goal.ProgressType switch
             {
-                ProgressTypes.Stages => PercentDone(goal.Stages),
-                ProgressTypes.Numeric => NumericPercent(goal.Numeric),
-                ProgressTypes.Checklist => ChecklistPercent(childrenByParent.GetValueOrDefault(goal.Id)),
-                ProgressTypes.Rollup => RollupPercent(childrenByParent.GetValueOrDefault(goal.Id)),
-                ProgressTypes.Daily => Math.Round(checkinsByGoal.GetValueOrDefault(goal.Id) / 7.0 * 100, 1),
-                ProgressTypes.Weekly => WeeklyPercent(attemptsByGoal.GetValueOrDefault(goal.Id)),
+                ProgressTypes.Stages => ProgressCalculator.Stages(goal.Stages),
+                ProgressTypes.Numeric => ProgressCalculator.Numeric(goal.Numeric),
+                ProgressTypes.Checklist => ProgressCalculator.Checklist(childrenByParent.GetValueOrDefault(goal.Id)),
+                ProgressTypes.Rollup => ProgressCalculator.Rollup(childrenByParent.GetValueOrDefault(goal.Id)),
+                ProgressTypes.Daily => ProgressCalculator.Daily(checkinsByGoal.GetValueOrDefault(goal.Id)),
+                ProgressTypes.Weekly => ProgressCalculator.Weekly(attemptsByGoal.GetValueOrDefault(goal.Id)),
                 _ => goal.Progress, // manual
             };
         }
@@ -58,31 +50,6 @@ public class ProgressService(MongoContext db)
         return goals;
     }
 
-    private static double PercentDone(List<Stage>? stages) =>
-        stages is not { Count: > 0 } ? 0 : Math.Round(stages.Count(s => s.Done) * 100.0 / stages.Count, 1);
-
-    private static double NumericPercent(NumericProgress? n) =>
-        n is null || n.Target <= 0 ? 0 : Math.Round(Math.Clamp(n.Current / n.Target, 0, 1) * 100, 1);
-
-    private static double ChecklistPercent(List<Goal>? children)
-    {
-        var items = children?.Where(c => c.Status != GoalStatuses.Archived).ToList();
-        return items is not { Count: > 0 } ? 0 : Math.Round(items.Count(c => c.Status == GoalStatuses.Done) * 100.0 / items.Count, 1);
-    }
-
-    private static double RollupPercent(List<Goal>? children)
-    {
-        var items = children?.Where(c => c.Status != GoalStatuses.Archived).ToList();
-        return items is not { Count: > 0 } ? 0 : Math.Round(items.Average(c => c.Progress), 1);
-    }
-
-    private static double WeeklyPercent(List<WeeklyAttempt>? attempts)
-    {
-        var recent = attempts?.OrderByDescending(a => a.WeekOf).Take(4).ToList();
-        return recent is not { Count: > 0 } ? 0 : Math.Round(recent.Count(a => a.Result == "pass") * 100.0 / recent.Count, 1);
-    }
-
-    /// <summary>Consecutive-day streak ending today (or yesterday if today not yet checked).</summary>
     public async Task<int> CurrentStreakAsync(string userId, string goalId)
     {
         var dates = (await db.Checkins
@@ -92,15 +59,6 @@ public class ProgressService(MongoContext db)
             .Select(DateOnly.Parse)
             .ToHashSet();
 
-        var day = DateOnly.FromDateTime(DateTime.UtcNow);
-        if (!dates.Contains(day)) day = day.AddDays(-1); // today not checked yet doesn't break the streak
-
-        var streak = 0;
-        while (dates.Contains(day))
-        {
-            streak++;
-            day = day.AddDays(-1);
-        }
-        return streak;
+        return ProgressCalculator.Streak(dates, DateOnly.FromDateTime(DateTime.UtcNow));
     }
 }
