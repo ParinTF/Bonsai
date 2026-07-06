@@ -25,6 +25,7 @@ await page.waitForTimeout(500)
 await page.click('button:has-text("Add subgoal")')
 await page.fill('input[placeholder*="Subgoal title"]', 'อ่านทุกวัน 20 นาที')
 await page.selectOption('select', 'daily')
+await page.waitForTimeout(300) // let React state settle before submitting
 await page.click('form button:has-text("Add")')
 await page.waitForTimeout(800)
 await page.screenshot({ path: shots + 's2-detail.png' })
@@ -32,7 +33,7 @@ await page.screenshot({ path: shots + 's2-detail.png' })
 // 4. Today: check in the habit
 await page.click('a:has-text("Today")')
 await page.waitForTimeout(500)
-await page.click('input[type=checkbox]')
+await page.click('[role=checkbox]')
 await page.waitForTimeout(800)
 await page.screenshot({ path: shots + 's3-today.png' })
 

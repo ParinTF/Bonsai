@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PartyPopper } from 'lucide-react'
 import { goalsApi, habitsApi, type ProgressType } from '../lib/api'
-import { ProgressBar } from '../components/ProgressBar'
+import { GrowthRing } from '../components/GrowthRing'
+import { AnimatedCheckbox } from '../components/AnimatedCheckbox'
 import { WeekGoalCard } from '../components/WeekGoalCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -71,15 +72,15 @@ function TodaySection() {
       <ul className="space-y-2">
         {habits.map(({ goal, checkedToday, streak }) => (
           <li key={goal.id} className="bg-card rounded-xl border border-border shadow-sm px-4 py-3.5 flex items-center gap-3">
-            <input
-              type="checkbox" checked={checkedToday}
-              onChange={() => checkin.mutate(goal.id)}
-              className="w-5 h-5 accent-primary cursor-pointer"
+            <AnimatedCheckbox
+              checked={checkedToday}
+              onToggle={() => checkin.mutate(goal.id)}
+              label={`Check in ${goal.title}`}
             />
             <span className={`flex-1 ${checkedToday ? 'text-muted-foreground line-through' : ''}`}>
               {goal.title}
             </span>
-            <span className="text-sm text-accent font-semibold tabular-nums" title="Current streak">
+            <span className="text-sm text-accent-deep font-semibold tabular-nums" title="Current streak">
               🔥 {streak}
             </span>
           </li>
@@ -121,6 +122,8 @@ function YourGoalsSection() {
     onSuccess: () => {
       setTitle('')
       qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['today'] })
+      qc.invalidateQueries({ queryKey: ['this-week'] })
     },
   })
 
@@ -168,15 +171,17 @@ function YourGoalsSection() {
           <li key={goal.id}>
             <Link
               to={`/goals/${goal.id}`}
-              className="block bg-card rounded-xl border border-border p-4 shadow-sm hover:shadow-md hover:border-primary/40 transition-all"
+              className="block bg-background rounded-xl border-2 border-earth p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 ease-out"
             >
-              <div className="flex items-center justify-between mb-2 gap-2">
-                <span className={`font-medium ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
-                  {goal.title}
-                </span>
-                <span className="text-xs text-muted-foreground shrink-0">{progressTypeLabels[goal.progressType]}</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className={`font-heading text-lg font-semibold block truncate ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
+                    {goal.title}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{progressTypeLabels[goal.progressType]}</span>
+                </div>
+                <GrowthRing value={goal.progress} />
               </div>
-              <ProgressBar value={goal.progress} />
             </Link>
           </li>
         ))}

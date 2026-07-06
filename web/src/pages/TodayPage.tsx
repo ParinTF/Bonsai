@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { habitsApi } from '../lib/api'
+import { AnimatedCheckbox } from '../components/AnimatedCheckbox'
 
 export function TodayPage() {
   const qc = useQueryClient()
@@ -32,15 +33,15 @@ export function TodayPage() {
       <ul className="space-y-2">
         {habits.map(({ goal, checkedToday, streak }) => (
           <li key={goal.id} className="bg-card rounded-xl border border-border shadow-sm p-4 flex items-center gap-3">
-            <input
-              type="checkbox" checked={checkedToday}
-              onChange={() => checkin.mutate(goal.id)}
-              className="w-5 h-5 accent-primary cursor-pointer"
+            <AnimatedCheckbox
+              checked={checkedToday}
+              onToggle={() => checkin.mutate(goal.id)}
+              label={`Check in ${goal.title}`}
             />
             <span className={`flex-1 text-sm ${checkedToday ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
               {goal.title}
             </span>
-            <span className="text-sm text-accent font-medium" title="Current streak">
+            <span className="text-sm text-accent-deep font-semibold tabular-nums" title="Current streak">
               🔥 {streak}
             </span>
           </li>

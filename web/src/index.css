@@ -1,14 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/noto-sans-thai";
-@import "@fontsource-variable/noto-serif-thai";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/fraunces";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-sans: 'Noto Sans Thai Variable', system-ui, sans-serif;
-    --font-heading: 'Noto Serif Thai Variable', Georgia, serif;
+    --font-sans: 'Inter Variable', system-ui, sans-serif;
+    --font-heading: 'Fraunces Variable', Georgia, serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,6 +40,9 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-earth: var(--earth);
+    --color-primary-deep: var(--primary-deep);
+    --color-accent-deep: var(--accent-deep);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -49,45 +52,46 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/*
- * Bonsai palette
- *   primary   : deep bonsai green  #2D4A3E
- *   background: warm cream         #F5F1E6
- *   accent    : earthy terracotta  #C05F33
- */
 :root {
-    --background: oklch(0.955 0.018 90);          /* warm cream */
-    --foreground: oklch(0.28 0.03 165);           /* dark green-gray */
-    --card: oklch(0.985 0.008 95);                /* near-white cream */
-    --card-foreground: oklch(0.28 0.03 165);
-    --popover: oklch(0.985 0.008 95);
-    --popover-foreground: oklch(0.28 0.03 165);
-    --primary: oklch(0.38 0.05 165);              /* deep bonsai green #2D4A3E */
-    --primary-foreground: oklch(0.97 0.01 95);
-    --secondary: oklch(0.92 0.02 90);
-    --secondary-foreground: oklch(0.32 0.04 165);
-    --muted: oklch(0.93 0.015 90);
-    --muted-foreground: oklch(0.5 0.02 140);
-    --accent: oklch(0.58 0.13 45);                /* earthy terracotta #C05F33 */
-    --accent-foreground: oklch(0.98 0.01 95);
-    --destructive: oklch(0.55 0.2 27);
-    --border: oklch(0.88 0.02 90);
-    --input: oklch(0.86 0.02 90);
-    --ring: oklch(0.5 0.06 165);
-    --chart-1: oklch(0.38 0.05 165);
-    --chart-2: oklch(0.58 0.13 45);
-    --chart-3: oklch(0.62 0.08 140);
-    --chart-4: oklch(0.7 0.1 80);
-    --chart-5: oklch(0.5 0.04 200);
+    /* Bonsai design system
+       primary #1B3A2B pine green · background #F5F1E8 warm paper
+       border  #8B6F47 earth      · accent   #C9A876 golden light
+       text    #2D2A24 */
+    --background: #F5F1E8;
+    --foreground: #2D2A24;
+    --card: #FBF8F1;
+    --card-foreground: #2D2A24;
+    --popover: #FBF8F1;
+    --popover-foreground: #2D2A24;
+    --primary: #1B3A2B;
+    --primary-foreground: #F5F1E8;
+    --primary-deep: #0F241A;           /* darker-than-primary button border */
+    --secondary: #EAE3D3;
+    --secondary-foreground: #2D2A24;
+    --muted: #ECE6D8;
+    --muted-foreground: #66604F;       /* 5.4:1 on #F5F1E8 */
+    --accent: #C9A876;
+    --accent-foreground: #2D2A24;      /* dark text on gold for contrast */
+    --accent-deep: #A8875A;            /* darker-than-accent border */
+    --earth: #8B6F47;
+    --destructive: #9C3A2E;
+    --border: #C9BA9B;                 /* softened earth for hairlines */
+    --input: #B7A883;
+    --ring: #C9A876;
+    --chart-1: #1B3A2B;
+    --chart-2: #C9A876;
+    --chart-3: #8B6F47;
+    --chart-4: #5C7A5C;
+    --chart-5: #66604F;
     --radius: 0.75rem;
-    --sidebar: oklch(0.985 0.008 95);
-    --sidebar-foreground: oklch(0.28 0.03 165);
-    --sidebar-primary: oklch(0.38 0.05 165);
-    --sidebar-primary-foreground: oklch(0.97 0.01 95);
-    --sidebar-accent: oklch(0.93 0.015 90);
-    --sidebar-accent-foreground: oklch(0.32 0.04 165);
-    --sidebar-border: oklch(0.88 0.02 90);
-    --sidebar-ring: oklch(0.5 0.06 165);
+    --sidebar: #FBF8F1;
+    --sidebar-foreground: #2D2A24;
+    --sidebar-primary: #1B3A2B;
+    --sidebar-primary-foreground: #F5F1E8;
+    --sidebar-accent: #ECE6D8;
+    --sidebar-accent-foreground: #2D2A24;
+    --sidebar-border: #C9BA9B;
+    --sidebar-ring: #C9A876;
 }
 
 @layer base {

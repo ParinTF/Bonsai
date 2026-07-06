@@ -37,7 +37,7 @@ await page.waitForTimeout(1000)
 await page.screenshot({ path: shots + 'dash1-initial.png' })
 
 // Check both habits directly on the dashboard (no reload)
-const boxes = page.locator('section:has(h1:has-text("Today")) input[type=checkbox]')
+const boxes = page.locator('section:has(h1:has-text("Today")) [role=checkbox]')
 await boxes.nth(0).click()
 await page.waitForTimeout(600)
 await boxes.nth(1).click()

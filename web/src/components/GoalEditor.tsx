@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { goalsApi, type Goal, type ProgressType } from '../lib/api'
 
 export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
@@ -104,9 +104,15 @@ function AddStageForm({ goal, onChanged }: { goal: Goal; onChanged: () => void }
 export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: () => void }) {
   const [title, setTitle] = useState('')
   const [progressType, setProgressType] = useState<ProgressType>('manual')
+  const qc = useQueryClient()
   const create = useMutation({
     mutationFn: () => goalsApi.create({ title, parentId, progressType }),
-    onSuccess: onDone,
+    onSuccess: () => {
+      // A new goal can be a daily habit or weekly commitment — refresh those views too
+      qc.invalidateQueries({ queryKey: ['today'] })
+      qc.invalidateQueries({ queryKey: ['this-week'] })
+      onDone()
+    },
   })
   return (
     <form

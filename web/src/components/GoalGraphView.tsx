@@ -31,13 +31,13 @@ const NODE_H = 76
 
 // Per-progressType accent: card border + badge tint + icon
 const typeStyle: Record<ProgressType, { border: string; badge: string; Icon: typeof Flame }> = {
-  rollup: { border: 'border-slate-300', badge: 'bg-slate-100 text-slate-600', Icon: GitBranch },
-  stages: { border: 'border-sky-300', badge: 'bg-sky-100 text-sky-700', Icon: ListChecks },
-  numeric: { border: 'border-amber-300', badge: 'bg-amber-100 text-amber-700', Icon: Hash },
-  checklist: { border: 'border-teal-300', badge: 'bg-teal-100 text-teal-700', Icon: CheckSquare },
-  manual: { border: 'border-gray-300', badge: 'bg-gray-100 text-gray-600', Icon: SlidersHorizontal },
-  daily: { border: 'border-orange-300', badge: 'bg-orange-100 text-orange-700', Icon: Flame },
-  weekly: { border: 'border-violet-300', badge: 'bg-violet-100 text-violet-700', Icon: CalendarCheck },
+  rollup: { border: 'border-[#8B6F47]', badge: 'bg-[#E4DCC8] text-[#4A4234]', Icon: GitBranch },
+  stages: { border: 'border-[#7A9B6D]', badge: 'bg-[#DDE8D4] text-[#3A5230]', Icon: ListChecks },
+  numeric: { border: 'border-[#A8875A]', badge: 'bg-[#EFE3CB] text-[#6B5326]', Icon: Hash },
+  checklist: { border: 'border-[#6D8F7E]', badge: 'bg-[#D9E5DE] text-[#2E4A3B]', Icon: CheckSquare },
+  manual: { border: 'border-[#A9A296]', badge: 'bg-[#E6E2DA] text-[#55503F]', Icon: SlidersHorizontal },
+  daily: { border: 'border-[#B08B5E]', badge: 'bg-[#EADBC5] text-[#6B4E28]', Icon: Flame },
+  weekly: { border: 'border-[#C9A876]', badge: 'bg-[#F0E2C4] text-[#6B5326]', Icon: CalendarCheck },
 }
 
 // Selection highlight comes from React Flow's own `selected` prop, NOT from
@@ -51,11 +51,11 @@ function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
   const done = goal.status === 'done'
   return (
     <div
-      className={`w-[200px] bg-card rounded-xl border-2 shadow-[0_2px_10px_-2px_rgb(45_74_62/0.12)] px-3 pt-2.5 pb-2 cursor-pointer transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgb(45_74_62/0.25)] hover:-translate-y-0.5 ${
+      className={`w-[200px] bg-card rounded-xl border-[1.5px] shadow-[0_2px_10px_-2px_rgb(27_58_43/0.14)] px-3 pt-2.5 pb-2 cursor-pointer transition-all duration-200 hover:shadow-[0_6px_20px_-4px_rgb(27_58_43/0.28)] hover:-translate-y-0.5 ${
         selected ? 'border-primary ring-2 ring-primary/25' : `${border} hover:border-primary/60`
       }`}
     >
-      <Handle type="target" position={Position.Top} className="!bg-gray-300" />
+      <Handle type="target" position={Position.Top} className="!bg-[#B7A883]" />
       <div className="flex items-center gap-1.5 mb-1.5">
         {done ? (
           <CheckCircle size={14} className="text-primary shrink-0" />
@@ -75,7 +75,7 @@ function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
         </div>
         <span className="text-[9px] text-muted-foreground w-6 text-right">{Math.round(goal.progress)}%</span>
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-gray-300" />
+      <Handle type="source" position={Position.Bottom} className="!bg-[#B7A883]" />
     </div>
   )
 }
@@ -160,7 +160,7 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         source: g.parentId!,
         target: g.id,
         type: 'smoothstep',
-        style: { stroke: '#a7b3c0', strokeWidth: 1.5 },
+        style: { stroke: '#B7A883', strokeWidth: 1.5 },
       }))
   }, [goals])
 
@@ -189,7 +189,7 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         fitView
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={20} color="#d8d2c2" />
+        <Background gap={20} color="#DCD3BC" />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

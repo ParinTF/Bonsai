@@ -64,8 +64,7 @@ export function GoalDetailPage() {
             <Plus size={15} /> Add subgoal
           </Button>
           <Button
-            size="sm" onClick={breakdownWithAi} disabled={aiBusy}
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
+            size="sm" variant="accent" onClick={breakdownWithAi} disabled={aiBusy}
           >
             <Sparkles size={15} /> {aiBusy ? 'Breaking down…' : 'Break down with AI'}
           </Button>
