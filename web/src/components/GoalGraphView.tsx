@@ -13,36 +13,64 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from '@dagrejs/dagre'
-import { goalsApi, type Goal } from '../lib/api'
+import {
+  CalendarCheck,
+  CheckCircle,
+  CheckSquare,
+  Flame,
+  GitBranch,
+  Hash,
+  ListChecks,
+  SlidersHorizontal,
+} from 'lucide-react'
+import { goalsApi, type Goal, type ProgressType } from '../lib/api'
 
-const NODE_W = 220
-const NODE_H = 88
+const NODE_W = 200
+const NODE_H = 76
+
+// Per-progressType accent: card border + badge tint + icon
+const typeStyle: Record<ProgressType, { border: string; badge: string; Icon: typeof Flame }> = {
+  rollup: { border: 'border-slate-300', badge: 'bg-slate-100 text-slate-600', Icon: GitBranch },
+  stages: { border: 'border-sky-300', badge: 'bg-sky-100 text-sky-700', Icon: ListChecks },
+  numeric: { border: 'border-amber-300', badge: 'bg-amber-100 text-amber-700', Icon: Hash },
+  checklist: { border: 'border-teal-300', badge: 'bg-teal-100 text-teal-700', Icon: CheckSquare },
+  manual: { border: 'border-gray-300', badge: 'bg-gray-100 text-gray-600', Icon: SlidersHorizontal },
+  daily: { border: 'border-orange-300', badge: 'bg-orange-100 text-orange-700', Icon: Flame },
+  weekly: { border: 'border-violet-300', badge: 'bg-violet-100 text-violet-700', Icon: CalendarCheck },
+}
 
 type GoalNodeData = { goal: Goal; selected: boolean }
 type GoalFlowNode = Node<GoalNodeData, 'goal'>
 
 function GoalNodeCard({ data }: NodeProps<GoalFlowNode>) {
   const { goal, selected } = data
+  const { border, badge, Icon } = typeStyle[goal.progressType]
+  const done = goal.status === 'done'
   return (
     <div
-      className={`w-[220px] bg-white rounded-xl border-2 p-3 shadow-sm cursor-pointer transition-colors ${
-        selected ? 'border-emerald-500' : 'border-gray-200 hover:border-emerald-300'
+      className={`w-[200px] bg-white rounded-xl border-2 shadow-md px-3 pt-2.5 pb-2 cursor-pointer transition-colors ${
+        selected ? 'border-emerald-500 ring-2 ring-emerald-200' : `${border} hover:border-emerald-400`
       }`}
     >
       <Handle type="target" position={Position.Top} className="!bg-gray-300" />
-      <div className="flex items-center justify-between gap-1 mb-2">
-        <span className={`text-sm font-medium truncate ${goal.status === 'done' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        {done ? (
+          <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+        ) : (
+          <Icon size={14} className="text-gray-400 shrink-0" />
+        )}
+        <span className={`text-[13px] font-medium truncate flex-1 ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
           {goal.title}
         </span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">
+        <span className={`text-[9px] px-1.5 py-0.5 rounded-full shrink-0 ${badge}`}>
           {goal.progressType}
         </span>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+      <div className="flex items-center gap-1.5">
+        <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
           <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${goal.progress}%` }} />
         </div>
-        <span className="text-[10px] text-gray-500">{Math.round(goal.progress)}%</span>
+        <span className="text-[9px] text-gray-500 w-6 text-right">{Math.round(goal.progress)}%</span>
       </div>
       <Handle type="source" position={Position.Bottom} className="!bg-gray-300" />
     </div>
@@ -54,7 +82,7 @@ const nodeTypes = { goal: GoalNodeCard }
 /** Dagre top-down tree layout for goals that don't have a saved position yet. */
 function autoLayout(goals: Goal[]): Map<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph()
-  g.setGraph({ rankdir: 'TB', nodesep: 40, ranksep: 70 })
+  g.setGraph({ rankdir: 'TB', nodesep: 36, ranksep: 64 })
   g.setDefaultEdgeLabel(() => ({}))
   const ids = new Set(goals.map(x => x.id))
   for (const goal of goals) g.setNode(goal.id, { width: NODE_W, height: NODE_H })
@@ -110,7 +138,8 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         id: `${g.parentId}-${g.id}`,
         source: g.parentId!,
         target: g.id,
-        style: { stroke: '#a7b3c0' },
+        type: 'smoothstep',
+        style: { stroke: '#a7b3c0', strokeWidth: 1.5 },
       }))
   }, [goals])
 
