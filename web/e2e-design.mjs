@@ -9,19 +9,33 @@ const reg = await (await fetch('http://localhost:5264/auth/register', {
   body: JSON.stringify({ email, password: 'password123' }),
 })).json()
 const token = reg.token
-const post = (path, body) =>
+const req = (method, path, body) =>
   fetch('http://localhost:5264' + path, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   }).then(r => r.json())
+const post = (path, body) => req('POST', path, body)
 
-const root = await post('/goals', { title: 'ฟิตร่างกายปีนี้', progressType: 'rollup' })
-const a = await post('/goals', { title: 'วิ่งทุกวัน', progressType: 'daily', parentId: root.id })
-await post('/goals', { title: 'เวท 3 ครั้ง/สัปดาห์', progressType: 'weekly', parentId: root.id })
-await post('/goals', { title: 'ซ้อม 5K', progressType: 'numeric', parentId: a.id, numeric: { target: 5, current: 2, unit: 'km' } })
-await post('/goals', { title: 'อ่านหนังสือ 12 เล่ม', progressType: 'numeric', numeric: { target: 12, current: 4, unit: 'เล่ม' } })
-await fetch(`http://localhost:5264/habits/${a.id}/checkin`, { method: 'PATCH', headers: { Authorization: 'Bearer ' + token } })
+// Seed a believable goal tree
+const root = await post('/goals', { title: 'Get fit this year', progressType: 'rollup' })
+const run = await post('/goals', { title: 'Morning run', progressType: 'daily', parentId: root.id })
+const read = await post('/goals', { title: 'Read 20 minutes', progressType: 'daily', parentId: root.id })
+const gym = await post('/goals', { title: 'Gym 3x a week', progressType: 'weekly', parentId: root.id })
+await post('/goals', { title: 'Train for a 5K', progressType: 'numeric', parentId: run.id, numeric: { target: 5, current: 3.2, unit: 'km' } })
+await post('/goals', { title: 'Read 12 books', progressType: 'numeric', numeric: { target: 12, current: 4, unit: 'books' } })
+
+// Weekly history: pass, fail, pass, pass
+for (const [weekOf, result] of [['2026-06-15','pass'],['2026-06-22','fail'],['2026-06-29','pass'],['2026-07-06','pass']]) {
+  await post(`/goals/${gym.id}/weekly-attempt`, { result, weekOf })
+}
+
+// Checkin history across the month for the heatmap (mix of full/partial days)
+const days = ['2026-07-01','2026-07-02','2026-07-03','2026-07-04','2026-07-05','2026-07-06']
+for (const [i, d] of days.entries()) {
+  await req('PATCH', `/habits/${run.id}/checkin?date=${d}&done=true`)
+  if (i % 2 === 0) await req('PATCH', `/habits/${read.id}/checkin?date=${d}&done=true`)
+}
 
 async function shoot(viewport, prefix) {
   const page = await browser.newPage({ viewport })
@@ -31,14 +45,14 @@ async function shoot(viewport, prefix) {
   await page.fill('input[type=password]', 'password123')
   await page.click('button[type=submit]')
   await page.waitForURL('http://localhost:5173/')
-  await page.waitForTimeout(900)
-  await page.screenshot({ path: `${shots}${prefix}-dashboard.png` })
-  await page.click('text=ฟิตร่างกายปีนี้')
-  await page.waitForSelector('.react-flow__node')
   await page.waitForTimeout(1200)
+  await page.screenshot({ path: `${shots}${prefix}-dashboard.png`, fullPage: true })
+  await page.click('text=Get fit this year')
+  await page.waitForSelector('.react-flow__node')
+  await page.waitForTimeout(1400)
   await page.screenshot({ path: `${shots}${prefix}-graph.png` })
   await page.click('a:has-text("Today")')
-  await page.waitForTimeout(700)
+  await page.waitForTimeout(800)
   await page.screenshot({ path: `${shots}${prefix}-today.png` })
   await page.close()
 }

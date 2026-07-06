@@ -6,6 +6,7 @@ import { goalsApi, habitsApi, type ProgressType } from '../lib/api'
 import { GrowthRing } from '../components/GrowthRing'
 import { AnimatedCheckbox } from '../components/AnimatedCheckbox'
 import { WeekGoalCard } from '../components/WeekGoalCard'
+import { CalendarHeatmap } from '../components/CalendarHeatmap'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -28,6 +29,10 @@ export function DashboardPage() {
       <TodaySection />
       <ThisWeekSection />
       <YourGoalsSection />
+      <section>
+        <h2 className="text-lg font-bold mb-3">Consistency</h2>
+        <CalendarHeatmap />
+      </section>
     </div>
   )
 }
@@ -43,6 +48,7 @@ function TodaySection() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today'] })
       qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['checkins-month'] })
     },
   })
 

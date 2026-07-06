@@ -3,7 +3,10 @@
 A hierarchical goal tracker that breaks big goals into a draggable node graph, down to daily habits and weekly commitments — with progress that rolls up automatically.
 
 ![Bonsai goal graph](docs/screenshots/goal-graph.png)
-<!-- TODO: add screenshots — docs/screenshots/goal-graph.png, dashboard.png, today.png -->
+
+| Dashboard | Today |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Today](docs/screenshots/today.png) |
 
 ## Why I built this
 
@@ -24,6 +27,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 - **7 progress-tracking types** — stages, numeric target, checklist, manual %, daily habit, weekly commitment, and rollup (parent = average of children), each with its own inline editor
 - **Draggable node-graph view** of each goal tree (React Flow) with Dagre auto-layout for new nodes; dragged positions persist through a dedicated `PATCH /goals/{id}/position` endpoint so canvas drags can't race progress edits
 - **Daily habit check-ins with streak tracking** — streak survives an unchecked *today*, breaks on a real gap
+- **Consistency calendar heatmap** — each day of the current month shaded by the fraction of habits completed
 - **Weekly pass/fail commitments** — one result per goal per ISO week (upserted), progress = pass rate over the last 4 recorded weeks
 - **AI goal breakdown** — one click turns a vague goal into a ≤3-level subtree whose leaves are concrete daily/weekly actions
 - **Per-user data isolation** on every endpoint; subtree delete cascades to check-ins and weekly attempts

@@ -39,6 +39,31 @@ public static class HabitEndpoints
             return Results.Ok(new { date = today, habits = result });
         }).RequireAuthorization();
 
+        // Month view for the calendar heatmap: per-day done-checkin counts
+        // plus the current number of active daily habits.
+        app.MapGet("/checkins", async (string? month, ClaimsPrincipal user, MongoContext db) =>
+        {
+            var userId = user.UserId();
+            var m = month ?? DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(m, @"^\d{4}-\d{2}$"))
+                return Results.BadRequest(new { error = "month must be yyyy-MM" });
+
+            var habitCount = await db.Goals.CountDocumentsAsync(g =>
+                g.UserId == userId && g.ProgressType == ProgressTypes.Daily && g.Status == GoalStatuses.Active);
+
+            var prefix = m + "-";
+            var checkins = await db.Checkins
+                .Find(c => c.UserId == userId && c.Done && c.Date.StartsWith(prefix))
+                .ToListAsync();
+
+            var days = checkins
+                .GroupBy(c => c.Date)
+                .Select(g => new { date = g.Key, doneCount = g.Count() })
+                .OrderBy(d => d.date);
+
+            return Results.Ok(new { month = m, habitCount, days });
+        }).RequireAuthorization();
+
         app.MapPatch("/habits/{id}/checkin", async (string id, string? date, bool? done, ClaimsPrincipal user, MongoContext db) =>
         {
             var userId = user.UserId();

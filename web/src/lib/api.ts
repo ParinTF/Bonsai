@@ -121,8 +121,15 @@ export const goalsApi = {
     api<Goal[]>('/goals/breakdown', { method: 'POST', body: JSON.stringify({ title, context, parentId }) }),
 }
 
+export interface MonthCheckins {
+  month: string
+  habitCount: number
+  days: { date: string; doneCount: number }[]
+}
+
 export const habitsApi = {
   today: () => api<TodayResponse>('/today'),
+  month: (month?: string) => api<MonthCheckins>(`/checkins${month ? `?month=${month}` : ''}`),
   checkin: (id: string, date?: string) =>
     api<{ goalId: string; date: string; done: boolean }>(`/habits/${id}/checkin${date ? `?date=${date}` : ''}`, { method: 'PATCH' }),
 }
