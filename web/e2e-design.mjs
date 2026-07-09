@@ -1,16 +1,18 @@
 import { chromium } from 'playwright'
 
 const shots = 'C:/Users/xibom/AppData/Local/Temp/'
+const WEB = process.env.WEB_URL ?? 'http://localhost:5173'
+const API = process.env.API_URL ?? 'http://localhost:5264'
 const browser = await chromium.launch()
 
 const email = 'design' + Date.now() + '@bonsai.dev'
-const reg = await (await fetch('http://localhost:5264/auth/register', {
+const reg = await (await fetch(API + '/auth/register', {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, password: 'password123' }),
 })).json()
 const token = reg.token
 const req = (method, path, body) =>
-  fetch('http://localhost:5264' + path, {
+  fetch(API + '' + path, {
     method,
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -26,12 +28,18 @@ await post('/goals', { title: 'Train for a 5K', progressType: 'numeric', parentI
 await post('/goals', { title: 'Read 12 books', progressType: 'numeric', numeric: { target: 12, current: 4, unit: 'books' } })
 
 // Weekly history: pass, fail, pass, pass
-for (const [weekOf, result] of [['2026-06-15','pass'],['2026-06-22','fail'],['2026-06-29','pass'],['2026-07-06','pass']]) {
-  await post(`/goals/${gym.id}/weekly-attempt`, { result, weekOf })
+const monday = (offsetWeeks) => {
+  const d = new Date()
+  const day = (d.getDay() + 6) % 7 // Monday = 0
+  d.setDate(d.getDate() - day - offsetWeeks * 7)
+  return d.toISOString().slice(0, 10)
+}
+for (const [i, result] of ['pass', 'pass', 'fail', 'pass'].entries()) {
+  await post(`/goals/${gym.id}/weekly-attempt`, { result, weekOf: monday(i) })
 }
 
 // Checkin history across the month for the heatmap (mix of full/partial days)
-const days = ['2026-07-01','2026-07-02','2026-07-03','2026-07-04','2026-07-05','2026-07-06']
+const days = [...Array(8)].map((_, i) => new Date(Date.now() - i * 86400000).toISOString().slice(0, 10))
 for (const [i, d] of days.entries()) {
   await req('PATCH', `/habits/${run.id}/checkin?date=${d}&done=true`)
   if (i % 2 === 0) await req('PATCH', `/habits/${read.id}/checkin?date=${d}&done=true`)
@@ -39,12 +47,12 @@ for (const [i, d] of days.entries()) {
 
 async function shoot(viewport, prefix) {
   const page = await browser.newPage({ viewport })
-  await page.goto('http://localhost:5173/login')
+  await page.goto(WEB + '/login')
   await page.screenshot({ path: `${shots}${prefix}-login.png` })
   await page.fill('input[type=email]', email)
   await page.fill('input[type=password]', 'password123')
   await page.click('button[type=submit]')
-  await page.waitForURL('http://localhost:5173/')
+  await page.waitForURL(WEB + '/')
   await page.waitForTimeout(1200)
   await page.screenshot({ path: `${shots}${prefix}-dashboard.png`, fullPage: true })
   await page.click('text=Get fit this year')
