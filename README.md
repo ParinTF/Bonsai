@@ -16,7 +16,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 
 | Layer | Technologies |
 |---|---|
-| Backend | .NET 10 minimal API, MongoDB (Atlas), JWT auth (BCrypt password hashing) |
+| Backend | .NET 10 minimal API, MongoDB (Atlas), JWT auth (BCrypt), Google Sign-In (ID-token flow) |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, TanStack Query, React Flow (@xyflow/react) |
 | AI | Anthropic API (structured outputs) for goal breakdown |
 | Testing | xUnit (backend), Playwright scripts (browser E2E) |
@@ -68,6 +68,7 @@ cd api/Bonsai.Api
 dotnet user-secrets set "Mongo:ConnectionString" "mongodb+srv://..."
 dotnet user-secrets set "Jwt:Key" "<any random string, 32+ chars>"
 dotnet user-secrets set "Anthropic:ApiKey" "sk-ant-..."   # optional — only the AI breakdown button needs it
+dotnet user-secrets set "Google:ClientId" "....apps.googleusercontent.com"   # optional — enables Sign in with Google
 
 # Run backend (http://localhost:5264)
 dotnet run --launch-profile http
@@ -75,6 +76,8 @@ dotnet run --launch-profile http
 # Run frontend (http://localhost:5173)
 cd ../../web
 npm install
+# optional — Google button on the login page (same client id as the backend):
+# cp .env.example .env.local  and fill in VITE_GOOGLE_CLIENT_ID
 npm run dev
 ```
 

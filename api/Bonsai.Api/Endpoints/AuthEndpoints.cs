@@ -7,6 +7,7 @@ namespace Bonsai.Api.Endpoints;
 
 public record RegisterRequest(string Email, string Password);
 public record LoginRequest(string Email, string Password);
+public record GoogleLoginRequest(string IdToken);
 
 public static class AuthEndpoints
 {
@@ -43,8 +44,56 @@ public static class AuthEndpoints
         {
             var email = req.Email.Trim().ToLowerInvariant();
             var user = await db.Users.Find(u => u.Email == email).FirstOrDefaultAsync();
-            if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
+            // PasswordHash is null for Google-only accounts — they can't password-login
+            if (user?.PasswordHash is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
                 return Results.Unauthorized();
+
+            return Results.Ok(new { token = tokens.CreateToken(user), email = user.Email });
+        });
+
+        // Google Identity Services ID-token flow (no client secret involved).
+        group.MapPost("/google", async (GoogleLoginRequest req, MongoContext db, TokenService tokens, IConfiguration config) =>
+        {
+            var clientId = config["Google:ClientId"];
+            if (string.IsNullOrEmpty(clientId))
+                return Results.Problem("Google sign-in is not configured (Google:ClientId missing)", statusCode: 501);
+
+            Google.Apis.Auth.GoogleJsonWebSignature.Payload payload;
+            try
+            {
+                payload = await Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync(req.IdToken,
+                    new Google.Apis.Auth.GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = [clientId], // token must be issued for OUR client id
+                    });
+            }
+            catch (Google.Apis.Auth.InvalidJwtException)
+            {
+                return Results.Unauthorized();
+            }
+
+            var email = payload.Email.Trim().ToLowerInvariant();
+            var user = await db.Users.Find(u => u.Email == email).FirstOrDefaultAsync();
+
+            if (user is null)
+            {
+                user = new User
+                {
+                    Id = ObjectId.GenerateNewId().ToString(),
+                    Email = email,
+                    PasswordHash = null,
+                    AuthProvider = "google",
+                    GoogleId = payload.Subject,
+                };
+                await db.Users.InsertOneAsync(user);
+            }
+            else if (user.GoogleId is null)
+            {
+                // Existing email/password account: link Google to it (matched by email)
+                await db.Users.UpdateOneAsync(
+                    u => u.Id == user.Id,
+                    Builders<User>.Update.Set(u => u.GoogleId, payload.Subject));
+            }
 
             return Results.Ok(new { token = tokens.CreateToken(user), email = user.Email });
         });

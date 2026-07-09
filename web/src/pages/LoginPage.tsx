@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import { authApi, setToken } from '../lib/api'
+import { googleClientId } from '../main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -11,6 +13,20 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
+
+  async function googleSignIn(idToken: string) {
+    setError('')
+    setBusy(true)
+    try {
+      const res = await authApi.google(idToken)
+      setToken(res.token)
+      navigate('/')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -48,6 +64,21 @@ export function LoginPage() {
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Sign up'}
         </Button>
+        {googleClientId && (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={cred => { if (cred.credential) googleSignIn(cred.credential) }}
+                onError={() => setError('Google sign-in failed')}
+              />
+            </div>
+          </>
+        )}
         <button
           type="button"
           onClick={() => setMode(m => (m === 'login' ? 'register' : 'login'))}
