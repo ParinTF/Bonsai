@@ -10,6 +10,7 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
     public string Name => "gemini";
 
     private const string BaseUrl = "https://generativelanguage.googleapis.com/v1beta";
+    private const string ModelId = "gemini-2.5-flash";
     private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
 
     public async Task<bool> ValidateKeyAsync(string apiKey, CancellationToken ct = default)
@@ -84,7 +85,7 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
         HttpResponseMessage res;
         try
         {
-            using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/models/gemini-2.0-flash:generateContent")
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/models/{ModelId}:generateContent")
             {
                 Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
             };
@@ -97,7 +98,19 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
         }
 
         if (!res.IsSuccessStatusCode)
-            throw new LlmProviderException($"Gemini request failed ({(int)res.StatusCode}) — check your API key and quota in Settings");
+        {
+            // Surface Gemini's own error message (it never contains the key).
+            var detail = "";
+            try
+            {
+                var errBody = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct));
+                var msg = errBody?["error"]?["message"]?.GetValue<string>();
+                if (!string.IsNullOrEmpty(msg))
+                    detail = ": " + (msg.Length > 200 ? msg[..200] + "…" : msg);
+            }
+            catch { /* keep the generic message */ }
+            throw new LlmProviderException($"Gemini request failed ({(int)res.StatusCode}){detail}");
+        }
 
         var json = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct));
         var text = json?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>()
