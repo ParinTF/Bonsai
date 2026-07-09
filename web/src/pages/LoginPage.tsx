@@ -48,7 +48,9 @@ export function LoginPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <form onSubmit={submit} className="bg-card rounded-2xl shadow-lg shadow-primary/5 border border-border p-6 sm:p-8 w-full max-w-sm space-y-4">
-        <h1 className="font-heading text-3xl font-bold text-primary text-center">🌱 Bonsai</h1>
+        <h1 className="flex justify-center">
+          <img src="/Bonsai.svg" alt="Bonsai" className="h-12 w-auto" />
+        </h1>
         <p className="text-sm text-muted-foreground text-center">
           {mode === 'login' ? 'Sign in to tend your goals' : 'Create a new account'}
         </p>
