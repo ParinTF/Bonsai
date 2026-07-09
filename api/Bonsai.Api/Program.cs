@@ -20,6 +20,8 @@ builder.Services.AddSingleton<MongoContext>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<BreakdownService>();
+builder.Services.AddScoped<DemoService>();
+builder.Services.AddHostedService<DemoResetService>();
 
 // Allowed origins come from config (Cors:AllowedOrigins, comma-separated);
 // defaults cover local dev (vite) and docker compose (nginx on :3000).
@@ -46,6 +48,20 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 app.UseCors("web");
 app.UseAuthentication();
+
+// Demo accounts are shared and read-mostly: block destructive requests so one
+// visitor can't wreck the demo for the next (hourly reset covers the rest).
+app.Use(async (ctx, next) =>
+{
+    if (ctx.User.HasClaim("isDemo", "true") && HttpMethods.IsDelete(ctx.Request.Method))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await ctx.Response.WriteAsJsonAsync(new { error = "Deleting is disabled in the demo — sign up to manage your own goals" });
+        return;
+    }
+    await next();
+});
+
 app.UseAuthorization();
 
 try

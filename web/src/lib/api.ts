@@ -105,6 +105,20 @@ export const authApi = {
     api<{ token: string; email: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   google: (idToken: string) =>
     api<{ token: string; email: string }>('/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) }),
+  demo: () =>
+    api<{ token: string; email: string }>('/auth/demo', { method: 'POST' }),
+}
+
+/** True when the stored JWT carries the demo claim. */
+export function isDemoToken(): boolean {
+  const t = getToken()
+  if (!t) return false
+  try {
+    const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.isDemo === 'true'
+  } catch {
+    return false
+  }
 }
 
 export const goalsApi = {

@@ -64,6 +64,24 @@ export function LoginPage() {
         <Button type="submit" disabled={busy} className="w-full">
           {busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Sign up'}
         </Button>
+        <Button
+          type="button" variant="accent" disabled={busy} className="w-full"
+          onClick={async () => {
+            setError('')
+            setBusy(true)
+            try {
+              const res = await authApi.demo()
+              setToken(res.token)
+              navigate('/')
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Demo unavailable')
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          ✨ Try Demo (no signup)
+        </Button>
         {googleClientId && (
           <>
             <div className="flex items-center gap-3">

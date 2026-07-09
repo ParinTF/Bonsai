@@ -51,6 +51,13 @@ public static class AuthEndpoints
             return Results.Ok(new { token = tokens.CreateToken(user), email = user.Email });
         });
 
+        // Instant shared demo account — no signup. Seeds example data on first use.
+        group.MapPost("/demo", async (DemoService demo, TokenService tokens) =>
+        {
+            var user = await demo.GetOrCreateDemoUserAsync();
+            return Results.Ok(new { token = tokens.CreateToken(user), email = user.Email });
+        });
+
         // Google Identity Services ID-token flow (no client secret involved).
         group.MapPost("/google", async (GoogleLoginRequest req, MongoContext db, TokenService tokens, IConfiguration config) =>
         {

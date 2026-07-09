@@ -13,14 +13,18 @@ public class TokenService(IConfiguration config)
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]
             ?? throw new InvalidOperationException("Jwt:Key not configured (use user-secrets)")));
 
+        List<Claim> claims =
+        [
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Email, user.Email),
+        ];
+        if (user.AuthProvider == "demo")
+            claims.Add(new Claim("isDemo", "true"));
+
         var token = new JwtSecurityToken(
             issuer: config["Jwt:Issuer"] ?? "bonsai",
             audience: config["Jwt:Audience"] ?? "bonsai",
-            claims:
-            [
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email),
-            ],
+            claims: claims,
             expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 
