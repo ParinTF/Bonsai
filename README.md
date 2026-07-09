@@ -20,7 +20,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, TanStack Query, React Flow (@xyflow/react) |
 | AI | Anthropic API (structured outputs) for goal breakdown |
 | Testing | xUnit (backend), Playwright scripts (browser E2E) |
-| DevOps | GitHub Actions CI (build + test on every push/PR) |
+| DevOps | Docker Compose (mongo + api + nginx web), GitHub Actions CI (build + test on every push/PR) |
 
 ## Features
 
@@ -56,7 +56,16 @@ Separating the math into a pure class keeps these tests free of MongoDB mocks. C
 
 `POST /goals/breakdown` ([`BreakdownService.cs`](api/Bonsai.Api/Services/BreakdownService.cs)) calls the Anthropic API with **structured outputs**: a JSON schema constrains the response to a goal tree at most 3 levels deep whose leaf nodes must be `daily` or `weekly` actions (the schema is unrolled per level, since structured outputs don't allow recursive schemas). The validated tree is then persisted as real goal documents with correct `parentId`/`ancestors` links — no free-text parsing.
 
-## Getting started
+## Quick Start with Docker
+
+```sh
+cp .env.example .env       # then fill in JWT_KEY (GOOGLE_CLIENT_ID / ANTHROPIC_API_KEY optional)
+docker compose up --build
+```
+
+Open http://localhost:3000 — the stack runs MongoDB (internal-only), the API on :8080, and the web app served by nginx on :3000, with data persisted in a named volume.
+
+## Getting started (local dev)
 
 Prerequisites: .NET 10 SDK, Node 20+, a MongoDB instance (Atlas free tier works).
 

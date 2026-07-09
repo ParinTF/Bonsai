@@ -21,7 +21,11 @@ builder.Services.AddScoped<ProgressService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<BreakdownService>();
 
-builder.Services.AddCors(o => o.AddPolicy("web", p => p.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
+// Allowed origins come from config (Cors:AllowedOrigins, comma-separated);
+// defaults cover local dev (vite) and docker compose (nginx on :3000).
+var allowedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:5173,http://localhost:3000")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(o => o.AddPolicy("web", p => p.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>

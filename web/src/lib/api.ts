@@ -1,4 +1,4 @@
-const API = 'http://localhost:5264'
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:5264'
 
 let token: string | null = localStorage.getItem('bonsai_token')
 

@@ -1,0 +1,32 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    # no ports: — reachable only inside the compose network
+
+  api:
+    build: api/Bonsai.Api
+    environment:
+      - Mongo__ConnectionString=mongodb://mongo:27017/bonsai
+      - Jwt__Key=${JWT_KEY}
+      - Google__ClientId=${GOOGLE_CLIENT_ID:-}
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      - mongo
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: web
+      args:
+        VITE_API_URL: http://localhost:8080
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  mongo-data:
