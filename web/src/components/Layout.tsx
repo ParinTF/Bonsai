@@ -14,7 +14,10 @@ export function Layout() {
     <div className="min-h-screen bg-background">
       <header className="bg-card/80 backdrop-blur border-b border-border sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-1 sm:gap-2">
-          <span className="font-heading text-lg font-bold text-primary mr-2 sm:mr-4">🌱 Bonsai</span>
+          <span className="flex items-center gap-1.5 mr-2 sm:mr-4">
+            <img src="/bonsai-icon.png" alt="" className="h-8 sm:h-9 w-auto" />
+            <span className="font-heading text-lg font-bold text-primary">Bonsai</span>
+          </span>
           <NavLink to="/" end className={linkClass}>Goals</NavLink>
           <NavLink to="/today" className={linkClass}>Today</NavLink>
           <NavLink to="/week" className={linkClass}>This Week</NavLink>
