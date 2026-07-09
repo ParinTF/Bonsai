@@ -19,7 +19,12 @@ builder.Services.AddSingleton<IMongoClient>(_ =>
 builder.Services.AddSingleton<MongoContext>();
 builder.Services.AddScoped<ProgressService>();
 builder.Services.AddSingleton<TokenService>();
-builder.Services.AddSingleton<BreakdownService>();
+builder.Services.AddDataProtection();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<Bonsai.Api.Services.Llm.ILlmProvider, Bonsai.Api.Services.Llm.AnthropicProvider>();
+builder.Services.AddSingleton<Bonsai.Api.Services.Llm.ILlmProvider, Bonsai.Api.Services.Llm.OpenAiProvider>();
+builder.Services.AddSingleton<Bonsai.Api.Services.Llm.ILlmProvider, Bonsai.Api.Services.Llm.GeminiProvider>();
+builder.Services.AddScoped<BreakdownService>();
 builder.Services.AddScoped<DemoService>();
 builder.Services.AddHostedService<DemoResetService>();
 
@@ -84,5 +89,6 @@ app.MapAuthEndpoints();
 app.MapGoalEndpoints();
 app.MapHabitEndpoints();
 app.MapBreakdownEndpoints();
+app.MapSettingsEndpoints();
 
 app.Run();

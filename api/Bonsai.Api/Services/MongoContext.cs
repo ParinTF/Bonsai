@@ -10,6 +10,7 @@ public class MongoContext
     public IMongoCollection<Goal> Goals { get; }
     public IMongoCollection<Checkin> Checkins { get; }
     public IMongoCollection<WeeklyAttempt> WeeklyAttempts { get; }
+    public IMongoCollection<UserSettings> UserSettings { get; }
 
     public MongoContext(IMongoClient client, IConfiguration config)
     {
@@ -19,6 +20,7 @@ public class MongoContext
         Goals = Database.GetCollection<Goal>("goals");
         Checkins = Database.GetCollection<Checkin>("checkins");
         WeeklyAttempts = Database.GetCollection<WeeklyAttempt>("weeklyAttempts");
+        UserSettings = Database.GetCollection<UserSettings>("userSettings");
     }
 
     public async Task EnsureIndexesAsync()
@@ -38,6 +40,10 @@ public class MongoContext
 
         await WeeklyAttempts.Indexes.CreateOneAsync(new CreateIndexModel<WeeklyAttempt>(
             Builders<WeeklyAttempt>.IndexKeys.Ascending(w => w.UserId).Ascending(w => w.GoalId).Ascending(w => w.WeekOf),
+            new CreateIndexOptions { Unique = true }));
+
+        await UserSettings.Indexes.CreateOneAsync(new CreateIndexModel<UserSettings>(
+            Builders<UserSettings>.IndexKeys.Ascending(s => s.UserId),
             new CreateIndexOptions { Unique = true }));
     }
 }

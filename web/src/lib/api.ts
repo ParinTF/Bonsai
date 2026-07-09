@@ -14,9 +14,11 @@ export function getToken() {
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  code: string | null
+  constructor(status: number, message: string, code: string | null = null) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -36,7 +38,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`)
+    throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`, body?.code ?? null)
   }
   if (res.status === 204) return undefined as T
   return res.json()
@@ -141,6 +143,21 @@ export interface MonthCheckins {
   month: string
   habitCount: number
   days: { date: string; doneCount: number }[]
+}
+
+export type LlmProvider = 'anthropic' | 'openai' | 'gemini'
+
+export interface LlmSettings {
+  provider: LlmProvider | null
+  keyLast4: string | null
+}
+
+export const settingsApi = {
+  getLlm: () => api<LlmSettings>('/settings/llm'),
+  // The key goes straight to the backend and is never kept client-side.
+  putLlm: (provider: LlmProvider, apiKey: string) =>
+    api<{ provider: LlmProvider; keyLast4: string }>('/settings/llm', { method: 'PUT', body: JSON.stringify({ provider, apiKey }) }),
+  deleteLlm: () => api<void>('/settings/llm', { method: 'DELETE' }),
 }
 
 export const habitsApi = {

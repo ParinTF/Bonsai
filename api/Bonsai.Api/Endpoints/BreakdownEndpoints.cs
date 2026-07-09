@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Bonsai.Api.Models;
+using Bonsai.Api.Services.Llm;
 using Bonsai.Api.Services;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -21,12 +22,38 @@ public static class BreakdownEndpoints
 
             var userId = user.UserId();
 
-            // Root goal: existing (ParentId given) or a new rollup goal
-            Goal root;
+            // Resolve the parent up front (but don't create anything yet).
+            Goal? existingRoot = null;
             if (req.ParentId is not null)
             {
-                root = await db.Goals.Find(g => g.Id == req.ParentId && g.UserId == userId).FirstOrDefaultAsync();
-                if (root is null) return Results.NotFound(new { error = "Parent goal not found" });
+                existingRoot = await db.Goals.Find(g => g.Id == req.ParentId && g.UserId == userId).FirstOrDefaultAsync();
+                if (existingRoot is null) return Results.NotFound(new { error = "Parent goal not found" });
+            }
+
+            // Call the LLM BEFORE creating the root goal, so a missing key or
+            // provider failure doesn't leave an empty goal behind.
+            BreakdownResult result;
+            try
+            {
+                result = await breakdown.BreakDownAsync(userId, req.Title, req.Context);
+            }
+            catch (LlmKeyMissingException)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "No LLM API key configured. Add one in Settings to use AI breakdown.",
+                    code = "llm_key_missing",
+                });
+            }
+            catch (LlmProviderException e)
+            {
+                return Results.Json(new { error = e.Message, code = "llm_provider_error" }, statusCode: 502);
+            }
+
+            Goal root;
+            if (existingRoot is not null)
+            {
+                root = existingRoot;
             }
             else
             {
@@ -41,8 +68,6 @@ public static class BreakdownEndpoints
                 };
                 await db.Goals.InsertOneAsync(root);
             }
-
-            var result = await breakdown.BreakDownAsync(req.Title, req.Context);
 
             var docs = new List<Goal>();
             void Persist(List<BreakdownNode> nodes, Goal parent)

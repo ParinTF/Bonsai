@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LogOut, Sparkles } from 'lucide-react'
+import { LogOut, Settings, Sparkles } from 'lucide-react'
 import { isDemoToken, setToken } from '../lib/api'
 import { Button } from '@/components/ui/button'
 
@@ -31,10 +31,13 @@ export function Layout() {
           <NavLink to="/" end className={linkClass}>Goals</NavLink>
           <NavLink to="/today" className={linkClass}>Today</NavLink>
           <NavLink to="/week" className={linkClass}>This Week</NavLink>
+          <NavLink to="/settings" className={p => `${linkClass(p)} ml-auto flex items-center`} aria-label="Settings">
+            <Settings size={16} />
+          </NavLink>
           <Button
             variant="ghost" size="sm"
             onClick={() => { setToken(null); navigate('/login') }}
-            className="ml-auto text-muted-foreground"
+            className="text-muted-foreground"
             aria-label="Log out"
           >
             <LogOut className="sm:hidden" size={16} />

@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { GoalDetailPage } from './pages/GoalDetailPage'
 import { TodayPage } from './pages/TodayPage'
 import { WeekPage } from './pages/WeekPage'
+import { SettingsPage } from './pages/SettingsPage'
 
 function RequireAuth() {
   return getToken() ? <Outlet /> : <Navigate to="/login" replace />
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/goals/:id" element={<GoalDetailPage />} />
           <Route path="/today" element={<TodayPage />} />
           <Route path="/week" element={<WeekPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

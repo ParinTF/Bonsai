@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Sparkles, Trash2, X } from 'lucide-react'
-import { goalsApi } from '../lib/api'
+import { ApiError, goalsApi } from '../lib/api'
 import { ProgressBar } from '../components/ProgressBar'
 import { GoalGraphView } from '../components/GoalGraphView'
 import { AddChildForm, GoalEditor } from '../components/GoalEditor'
@@ -15,6 +15,7 @@ export function GoalDetailPage() {
   const { data: goals, isLoading } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list })
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState('')
+  const [needsKey, setNeedsKey] = useState(false)
   const [addingChild, setAddingChild] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -44,11 +45,13 @@ export function GoalDetailPage() {
     if (!goal) return
     setAiBusy(true)
     setAiError('')
+    setNeedsKey(false)
     try {
       await goalsApi.breakdown(goal.title, undefined, goal.id)
       invalidate()
     } catch (e) {
-      setAiError(e instanceof Error ? e.message : 'AI breakdown failed')
+      if (e instanceof ApiError && e.code === 'llm_key_missing') setNeedsKey(true)
+      else setAiError(e instanceof Error ? e.message : 'AI breakdown failed')
     } finally {
       setAiBusy(false)
     }
@@ -79,6 +82,18 @@ export function GoalDetailPage() {
       </div>
 
       {aiError && <p className="text-sm text-destructive">{aiError}</p>}
+
+      {needsKey && (
+        <div className="bg-accent/15 border border-accent rounded-xl p-4 flex items-center gap-3 flex-wrap">
+          <p className="text-sm flex-1 min-w-52">
+            AI breakdown needs an LLM API key. Bring your own key (Anthropic,
+            OpenAI, or Gemini) — it takes a minute to set up.
+          </p>
+          <Button size="sm" variant="accent" onClick={() => navigate('/settings')}>
+            Open Settings
+          </Button>
+        </div>
+      )}
 
       {addingChild && (
         <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
