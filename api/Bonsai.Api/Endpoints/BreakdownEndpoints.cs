@@ -69,27 +69,18 @@ public static class BreakdownEndpoints
                 await db.Goals.InsertOneAsync(root);
             }
 
-            var docs = new List<Goal>();
-            void Persist(List<BreakdownNode> nodes, Goal parent)
+            // Flat list -> real goals, parents-first, ancestors derived per level.
+            List<Goal> docs;
+            try
             {
-                var order = 0;
-                foreach (var node in nodes)
-                {
-                    var goal = new Goal
-                    {
-                        Id = ObjectId.GenerateNewId().ToString(),
-                        UserId = userId,
-                        ParentId = parent.Id,
-                        Ancestors = [.. parent.Ancestors, parent.Id],
-                        Title = node.Title,
-                        ProgressType = ProgressTypes.All.Contains(node.ProgressType) ? node.ProgressType : ProgressTypes.Rollup,
-                        Order = order++,
-                    };
-                    docs.Add(goal);
-                    if (node.Children.Count > 0) Persist(node.Children, goal);
-                }
+                docs = BreakdownTreeBuilder.Build(result.Items, root, userId);
             }
-            Persist(result.Children, root);
+            catch (BreakdownValidationException e)
+            {
+                // Don't leave behind the root we just created for this breakdown
+                if (existingRoot is null) await db.Goals.DeleteOneAsync(g => g.Id == root.Id);
+                return Results.Json(new { error = $"The model returned an invalid tree: {e.Message}", code = "llm_provider_error" }, statusCode: 502);
+            }
 
             if (docs.Count > 0) await db.Goals.InsertManyAsync(docs);
 

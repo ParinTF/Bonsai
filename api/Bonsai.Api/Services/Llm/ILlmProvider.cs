@@ -2,23 +2,35 @@ using System.Text.Json.Serialization;
 
 namespace Bonsai.Api.Services.Llm;
 
-public class BreakdownNode
+/// <summary>
+/// One node of the AI-generated goal tree, in flat-list form. The tree
+/// structure is expressed through tempId/parentTempId references instead of
+/// nesting, so the model can pick its own depth (up to the prompt's cap).
+/// </summary>
+public class BreakdownItem
 {
+    [JsonPropertyName("tempId")]
+    public string TempId { get; set; } = null!;
+
+    /// <summary>null for the single root item.</summary>
+    [JsonPropertyName("parentTempId")]
+    public string? ParentTempId { get; set; }
+
     [JsonPropertyName("title")]
     public string Title { get; set; } = null!;
 
-    /// <summary>One of the Bonsai progressTypes; leaves should be "weekly" or "daily".</summary>
     [JsonPropertyName("progressType")]
     public string ProgressType { get; set; } = "rollup";
 
-    [JsonPropertyName("children")]
-    public List<BreakdownNode> Children { get; set; } = [];
+    /// <summary>Optional, for weekly nodes: what "pass" means for the week.</summary>
+    [JsonPropertyName("weeklyTarget")]
+    public string? WeeklyTarget { get; set; }
 }
 
 public class BreakdownResult
 {
-    [JsonPropertyName("children")]
-    public List<BreakdownNode> Children { get; set; } = [];
+    [JsonPropertyName("items")]
+    public List<BreakdownItem> Items { get; set; } = [];
 }
 
 /// <summary>Thrown when the user has no LLM key configured (and no server fallback exists).</summary>
@@ -42,12 +54,24 @@ public interface ILlmProvider
 public static class BreakdownPrompt
 {
     public static string Build(string goalTitle, string? context) => $"""
-        Break down this big goal into a hierarchical sub-goal tree (maximum 3 levels deep).
-        Every leaf node must be a concrete recurring action with progressType "weekly"
-        (a weekly commitment with pass/fail) or "daily" (a daily habit).
-        Intermediate nodes use progressType "rollup".
-        Keep it focused: 2-4 children per node. Titles in the same language as the goal.
-        Respond with JSON only.
+        Break this goal down into a tree of sub-goals, returned as a FLAT list of
+        items linked by tempId/parentTempId (parentTempId refers to another item's
+        tempId; use short ids like "n1", "n2", ...).
+
+        Rules:
+        - Exactly ONE item has parentTempId = null: the root, restating the goal
+          itself, with progressType "rollup".
+        - Choose the tree depth that fits the goal's real complexity. A simple goal
+          may only need 2 levels; a genuinely complex one may go 5-6 levels deep.
+          NEVER exceed 6 levels (root = level 1).
+        - Every branch must bottom out in a "weekly" node — a commitment concrete
+          enough to judge pass/fail at the end of a week (put what "pass" means in
+          weeklyTarget). Under each of those weekly nodes, attach at least one
+          "daily" habit that supports it.
+        - Intermediate grouping nodes use "rollup". Use "stages", "numeric",
+          "checklist" or "manual" only where they genuinely fit better.
+        - Keep it focused: 2-4 children per node. Titles in the same language as
+          the goal. Respond with JSON only.
 
         Goal: {goalTitle}
         {(string.IsNullOrWhiteSpace(context) ? "" : $"Context: {context}")}

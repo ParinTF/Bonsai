@@ -31,42 +31,34 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
     public async Task<BreakdownResult> BreakdownAsync(string goalTitle, string? context, string apiKey, CancellationToken ct = default)
     {
         // Gemini's responseSchema is an OpenAPI-style subset (no additionalProperties).
-        static JsonObject Level(bool leaf) =>
-            leaf
-                ? new JsonObject
-                {
-                    ["type"] = "OBJECT",
-                    ["properties"] = new JsonObject
-                    {
-                        ["title"] = new JsonObject { ["type"] = "STRING" },
-                        ["progressType"] = new JsonObject { ["type"] = "STRING", ["enum"] = new JsonArray("weekly", "daily") },
-                    },
-                    ["required"] = new JsonArray("title", "progressType"),
-                }
-                : new JsonObject
-                {
-                    ["type"] = "OBJECT",
-                    ["properties"] = new JsonObject
-                    {
-                        ["title"] = new JsonObject { ["type"] = "STRING" },
-                        ["progressType"] = new JsonObject { ["type"] = "STRING", ["enum"] = new JsonArray("rollup", "weekly", "daily") },
-                    },
-                    ["required"] = new JsonArray("title", "progressType"),
-                };
-
-        var level2 = Level(leaf: false);
-        ((JsonObject)level2["properties"]!)["children"] = new JsonObject { ["type"] = "ARRAY", ["items"] = Level(leaf: true) };
-        var level1 = Level(leaf: false);
-        ((JsonObject)level1["properties"]!)["children"] = new JsonObject { ["type"] = "ARRAY", ["items"] = level2 };
-
         var schema = new JsonObject
         {
             ["type"] = "OBJECT",
             ["properties"] = new JsonObject
             {
-                ["children"] = new JsonObject { ["type"] = "ARRAY", ["items"] = level1 },
+                ["items"] = new JsonObject
+                {
+                    ["type"] = "ARRAY",
+                    ["items"] = new JsonObject
+                    {
+                        ["type"] = "OBJECT",
+                        ["properties"] = new JsonObject
+                        {
+                            ["tempId"] = new JsonObject { ["type"] = "STRING" },
+                            ["parentTempId"] = new JsonObject { ["type"] = "STRING", ["nullable"] = true },
+                            ["title"] = new JsonObject { ["type"] = "STRING" },
+                            ["progressType"] = new JsonObject
+                            {
+                                ["type"] = "STRING",
+                                ["enum"] = new JsonArray("rollup", "stages", "numeric", "checklist", "manual", "daily", "weekly"),
+                            },
+                            ["weeklyTarget"] = new JsonObject { ["type"] = "STRING", ["nullable"] = true },
+                        },
+                        ["required"] = new JsonArray("tempId", "title", "progressType"),
+                    },
+                },
             },
-            ["required"] = new JsonArray("children"),
+            ["required"] = new JsonArray("items"),
         };
 
         var body = new JsonObject

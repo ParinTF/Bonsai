@@ -34,7 +34,7 @@ public class AnthropicProvider : ILlmProvider
     {
         AnthropicClient client = new() { ApiKey = apiKey };
 
-        // Structured outputs don't allow recursive schemas → the 3-level tree is unrolled.
+        // Flat-list schema: the tree is expressed via tempId/parentTempId references.
         var schema = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(BreakdownSchemas.JsonSchema)!;
 
         Message response;
@@ -61,7 +61,7 @@ public class AnthropicProvider : ILlmProvider
     }
 }
 
-/// <summary>Shared JSON-Schema text (draft style) for the 3-level goal tree.</summary>
+/// <summary>Shared JSON-Schema text (draft style) for the flat goal-item list.</summary>
 public static class BreakdownSchemas
 {
     public const string JsonSchema = """
@@ -69,44 +69,26 @@ public static class BreakdownSchemas
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "children": {
+        "items": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
+              "tempId": { "type": "string" },
+              "parentTempId": { "type": ["string", "null"] },
               "title": { "type": "string" },
-              "progressType": { "type": "string", "enum": ["rollup", "weekly", "daily"] },
-              "children": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "title": { "type": "string" },
-                    "progressType": { "type": "string", "enum": ["rollup", "weekly", "daily"] },
-                    "children": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                          "title": { "type": "string" },
-                          "progressType": { "type": "string", "enum": ["weekly", "daily"] }
-                        },
-                        "required": ["title", "progressType"]
-                      }
-                    }
-                  },
-                  "required": ["title", "progressType", "children"]
-                }
-              }
+              "progressType": {
+                "type": "string",
+                "enum": ["rollup", "stages", "numeric", "checklist", "manual", "daily", "weekly"]
+              },
+              "weeklyTarget": { "type": ["string", "null"] }
             },
-            "required": ["title", "progressType", "children"]
+            "required": ["tempId", "parentTempId", "title", "progressType", "weeklyTarget"]
           }
         }
       },
-      "required": ["children"]
+      "required": ["items"]
     }
     """;
 }
