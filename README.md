@@ -29,7 +29,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 - **Daily habit check-ins with streak tracking** — streak survives an unchecked *today*, breaks on a real gap
 - **Consistency calendar heatmap** — each day of the current month shaded by the fraction of habits completed
 - **Weekly pass/fail commitments** — one result per goal per ISO week (upserted), progress = pass rate over the last 4 recorded weeks
-- **AI goal breakdown (bring your own key)** — one click turns a vague goal into a ≤3-level subtree whose leaves are concrete daily/weekly actions; works with an Anthropic, OpenAI, or Gemini key configured in Settings
+- **AI goal breakdown (bring your own key)** — one click turns a vague goal into a subtree whose depth the model chooses to fit the goal's complexity (2 levels for simple goals, up to 6 max); every branch bottoms out in a pass/fail weekly commitment backed by at least one daily habit. Works with an Anthropic, OpenAI, or Gemini key configured in Settings
 - **One-click demo mode** — a shared demo account with a fully seeded goal tree (live streaks, weekly history, colored heatmap), guarded against destructive requests and reseeded hourly
 - **Auth options** — email/password, Google Sign-In (Google Identity Services ID-token flow, no client secret), or the demo account
 - **Archive & restore** — soft-delete any goal from the graph view and bring it back from the dashboard; hard delete still cascades the whole subtree
@@ -50,19 +50,20 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 
 ## Testing
 
-49 xUnit tests cover the progress math in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs):
+61 xUnit tests cover the pure logic — progress math in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) and the AI flat-list → tree conversion in [`BreakdownTreeBuilderTests.cs`](api/Bonsai.Api.Tests/BreakdownTreeBuilderTests.cs):
 
 - divide-by-zero and negative-target guards on numeric goals; current value clamped to [0, 100]
 - empty/null collections for every type (no children, no stages, no attempts)
 - archived children excluded from both checklist and rollup averages
 - weekly window selected by `weekOf` date, not list order (only the 4 most recent weeks count)
 - streak edge cases: unchecked *today* doesn't break the streak, a mid-run gap does
+- breakdown trees: 2-level and 6-level builds with parents-first ordering and correct ancestor chains; rejection (typed exception, no crash) of cycles, unknown/self/duplicate parent references, multiple roots, and >6-level depth
 
 Separating the math into a pure class keeps these tests free of MongoDB mocks. CI runs them on every push, builds the frontend, and then boots the whole Docker Compose stack to run a Playwright browser smoke test against it. The local `web/e2e-*.mjs` scripts cover more flows, including a regression test that drags a node, clicks empty canvas, and asserts zero position drift.
 
 ## AI integration (BYOK)
 
-`POST /goals/breakdown` asks an LLM to split a goal into a tree at most 3 levels deep whose leaf nodes must be `daily` or `weekly` actions, then persists the validated tree as real goal documents with correct `parentId`/`ancestors` links — no free-text parsing.
+`POST /goals/breakdown` asks an LLM to split a goal into a tree whose **depth the model chooses** (capped at 6 levels) based on the goal's real complexity. The structured output is a *flat* item list — `{ tempId, parentTempId, title, progressType, weeklyTarget? }` — which sidesteps the no-recursive-schema limitation of every provider's structured-output mode. [`BreakdownTreeBuilder.cs`](api/Bonsai.Api/Services/Llm/BreakdownTreeBuilder.cs) (pure, unit-tested) then validates the list — single root, no unknown/duplicate references, no cycles, depth ≤ 6 — and materialises it parents-first into real goal documents with correct `parentId`/`ancestors` links. Invalid model output is rejected with a clean error, never a crash.
 
 Users bring their own key: the Settings page accepts an Anthropic, OpenAI, or Gemini key ("Test & Save" validates it against the provider before storing). Behind [`BreakdownService.cs`](api/Bonsai.Api/Services/BreakdownService.cs) sits an [`ILlmProvider`](api/Bonsai.Api/Services/Llm/ILlmProvider.cs) abstraction with one implementation per vendor, each using that vendor's native structured-output mechanism (the shared JSON schema is unrolled per level, since none of them allow recursive schemas):
 
