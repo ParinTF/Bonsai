@@ -1,16 +1,19 @@
+import os from 'node:os'
 import { chromium } from 'playwright'
 
-const shots = 'C:/Users/xibom/AppData/Local/Temp/'
+const shots = os.tmpdir() + '/'
+const WEB = process.env.WEB_URL ?? 'http://localhost:5173'
+const API = process.env.API_URL ?? 'http://localhost:5264'
 const browser = await chromium.launch()
 const page = await browser.newPage()
 
 // 1. Register via UI
-await page.goto('http://localhost:5173/login')
+await page.goto(WEB + '/login')
 await page.click('text=No account? Sign up')
 await page.fill('input[type=email]', 'ui' + Date.now() + '@bonsai.dev')
 await page.fill('input[type=password]', 'password123')
 await page.click('button[type=submit]')
-await page.waitForURL('http://localhost:5173/')
+await page.waitForURL(WEB + '/')
 await page.waitForTimeout(500)
 
 // 2. Create root goal (rollup)

@@ -96,6 +96,6 @@ public static class BreakdownEndpoints
             var all = await progress.ComputeTreeAsync(userId);
             var subtreeIds = docs.Select(d => d.Id).Append(root.Id).ToHashSet();
             return Results.Ok(all.Where(g => subtreeIds.Contains(g.Id)));
-        }).RequireAuthorization();
+        }).RequireAuthorization().RequireRateLimiting("ai");
     }
 }

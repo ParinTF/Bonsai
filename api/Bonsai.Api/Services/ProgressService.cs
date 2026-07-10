@@ -50,7 +50,7 @@ public class ProgressService(MongoContext db)
         return goals;
     }
 
-    public async Task<int> CurrentStreakAsync(string userId, string goalId)
+    public async Task<int> CurrentStreakAsync(string userId, string goalId, DateOnly? today = null)
     {
         var dates = (await db.Checkins
                 .Find(c => c.UserId == userId && c.GoalId == goalId && c.Done)
@@ -59,6 +59,6 @@ public class ProgressService(MongoContext db)
             .Select(DateOnly.Parse)
             .ToHashSet();
 
-        return ProgressCalculator.Streak(dates, DateOnly.FromDateTime(DateTime.UtcNow));
+        return ProgressCalculator.Streak(dates, today ?? DateOnly.FromDateTime(DateTime.UtcNow));
     }
 }

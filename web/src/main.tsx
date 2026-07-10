@@ -3,7 +3,11 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { I18nProvider } from './lib/i18n'
 import './index.css'
+
+// Apply the saved theme before first paint to avoid a flash
+if (localStorage.getItem('bonsai_theme') === 'dark') document.documentElement.classList.add('dark')
 import App from './App.tsx'
 
 const queryClient = new QueryClient({
@@ -15,11 +19,13 @@ const queryClient = new QueryClient({
 export const googleClientId: string | undefined = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 const app = (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </QueryClientProvider>
+  <I18nProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </QueryClientProvider>
+  </I18nProvider>
 )
 
 createRoot(document.getElementById('root')!).render(

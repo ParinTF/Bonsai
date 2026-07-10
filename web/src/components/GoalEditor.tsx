@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { goalsApi, type Goal, type ProgressType } from '../lib/api'
+import { useI18n } from '../lib/i18n'
 
 export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
+  const { t } = useI18n()
   const update = useMutation({
     mutationFn: (data: Parameters<typeof goalsApi.update>[1]) => goalsApi.update(goal.id, data),
     onSuccess: onChanged,
@@ -64,7 +66,7 @@ export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => v
             onChange={() => update.mutate({ status: goal.status === 'done' ? 'active' : 'done' })}
             className="accent-primary"
           />
-          Completed (checklist parents count children by done status)
+          {t('editor.checklistDone')}
         </label>
       )
     default:
@@ -76,13 +78,14 @@ export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => v
             onChange={() => update.mutate({ status: goal.status === 'done' ? 'active' : 'done' })}
             className="accent-primary"
           />
-          Mark as done
+          {t('editor.done')}
         </label>
       ) : null
   }
 }
 
 function AddStageForm({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
+  const { t } = useI18n()
   const [title, setTitle] = useState('')
   const update = useMutation({
     mutationFn: () => goalsApi.update(goal.id, { stages: [...(goal.stages ?? []), { title, done: false }] }),
@@ -92,16 +95,17 @@ function AddStageForm({ goal, onChanged }: { goal: Goal; onChanged: () => void }
     <li>
       <form onSubmit={e => { e.preventDefault(); if (title.trim()) update.mutate() }} className="flex gap-1 mt-1">
         <input
-          value={title} onChange={e => setTitle(e.target.value)} placeholder="Add a step…"
+          value={title} onChange={e => setTitle(e.target.value)} placeholder={t('editor.addStep')}
           className="flex-1 px-2 py-1 rounded border border-border text-xs"
         />
-        <button type="submit" className="text-xs text-primary px-2">Add</button>
+        <button type="submit" className="text-xs text-primary px-2">{t('common.add')}</button>
       </form>
     </li>
   )
 }
 
 export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: () => void }) {
+  const { t } = useI18n()
   const [title, setTitle] = useState('')
   const [progressType, setProgressType] = useState<ProgressType>('manual')
   const qc = useQueryClient()
@@ -120,7 +124,7 @@ export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: (
       className="mt-3 flex gap-1"
     >
       <input
-        value={title} onChange={e => setTitle(e.target.value)} placeholder="Subgoal title…" autoFocus
+        value={title} onChange={e => setTitle(e.target.value)} placeholder={t('editor.subgoalTitle')} autoFocus
         className="flex-1 px-2 py-1 rounded border border-input bg-card text-xs"
       />
       <select value={progressType} onChange={e => setProgressType(e.target.value as ProgressType)} className="text-xs border border-input bg-card rounded px-1">
@@ -132,7 +136,7 @@ export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: (
         <option value="daily">daily</option>
         <option value="weekly">weekly</option>
       </select>
-      <button type="submit" className="text-xs text-primary px-2">Add</button>
+      <button type="submit" className="text-xs text-primary px-2">{t('common.add')}</button>
     </form>
   )
 }

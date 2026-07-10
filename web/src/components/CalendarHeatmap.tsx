@@ -1,35 +1,68 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { habitsApi } from '../lib/api'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { habitsApi, localDate } from '../lib/api'
+import { useI18n } from '../lib/i18n'
 
 /**
- * Current-month heatmap: each day is shaded by the fraction of daily habits
- * checked that day (solid pine green = all done).
+ * Month heatmap with prev/next navigation: each day is shaded by the fraction
+ * of daily habits checked that day (solid pine green = all done).
  */
 export function CalendarHeatmap() {
-  const { data, isLoading } = useQuery({ queryKey: ['checkins-month'], queryFn: () => habitsApi.month() })
+  const { t } = useI18n()
+  const currentMonth = localDate().slice(0, 7)
+  const [month, setMonth] = useState(currentMonth)
+  const { data, isLoading } = useQuery({
+    queryKey: ['checkins-month', month],
+    queryFn: () => habitsApi.month(month),
+  })
 
-  if (isLoading) return <p className="text-muted-foreground">Loading…</p>
+  function shift(delta: number) {
+    const [y, m] = month.split('-').map(Number)
+    const d = new Date(y, m - 1 + delta, 1)
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+
+  if (isLoading) return <p className="text-muted-foreground">{t('common.loading')}</p>
   if (!data || data.habitCount === 0) {
-    return <p className="text-muted-foreground text-sm">The heatmap appears once you have daily habits.</p>
+    return <p className="text-muted-foreground text-sm">{t('heatmap.empty')}</p>
   }
 
   const doneByDate = new Map(data.days.map(d => [d.date, d.doneCount]))
-  const [year, month] = data.month.split('-').map(Number)
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const firstWeekday = (new Date(year, month - 1, 1).getDay() + 6) % 7 // Monday = 0
-  const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const [year, monthNum] = data.month.split('-').map(Number)
+  const daysInMonth = new Date(year, monthNum, 0).getDate()
+  const firstWeekday = (new Date(year, monthNum - 1, 1).getDay() + 6) % 7 // Monday = 0
+  const todayStr = localDate()
 
   const cells: (number | null)[] = [
     ...Array.from({ length: firstWeekday }, () => null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
 
-  const monthName = new Date(year, month - 1).toLocaleString('en', { month: 'long', year: 'numeric' })
+  const monthName = new Date(year, monthNum - 1).toLocaleString('en', { month: 'long', year: 'numeric' })
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm p-4">
-      <p className="text-sm font-medium mb-3">{monthName}</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-medium">{monthName}</p>
+        <div className="flex gap-1">
+          <button
+            onClick={() => shift(-1)}
+            className="p-1 rounded hover:bg-secondary text-muted-foreground"
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            onClick={() => shift(1)}
+            disabled={month >= currentMonth}
+            className="p-1 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30"
+            aria-label="Next month"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-7 gap-1.5">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
           <span key={i} className="text-[10px] text-muted-foreground text-center">{d}</span>
@@ -59,9 +92,7 @@ export function CalendarHeatmap() {
           )
         })}
       </div>
-      <p className="text-[11px] text-muted-foreground mt-3">
-        Darker days = more habits completed · solid green = all done
-      </p>
+      <p className="text-[11px] text-muted-foreground mt-3">{t('heatmap.caption')}</p>
     </div>
   )
 }

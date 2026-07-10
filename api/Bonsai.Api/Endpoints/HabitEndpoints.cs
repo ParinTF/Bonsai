@@ -10,10 +10,14 @@ public static class HabitEndpoints
 {
     public static void MapHabitEndpoints(this WebApplication app)
     {
-        app.MapGet("/today", async (ClaimsPrincipal user, MongoContext db, ProgressService progress) =>
+        // ?date= is the CLIENT's local date — the server has no idea what "today"
+        // means in the user's timezone.
+        app.MapGet("/today", async (string? date, ClaimsPrincipal user, MongoContext db, ProgressService progress) =>
         {
             var userId = user.UserId();
-            var today = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+            var today = date ?? DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+            if (!DateOnly.TryParse(today, out var todayDate))
+                return Results.BadRequest(new { error = "date must be yyyy-MM-dd" });
 
             var habits = await db.Goals
                 .Find(g => g.UserId == userId && g.ProgressType == ProgressTypes.Daily && g.Status == GoalStatuses.Active)
@@ -32,7 +36,7 @@ public static class HabitEndpoints
                 {
                     goal = h,
                     checkedToday = checkedIds.Contains(h.Id),
-                    streak = await progress.CurrentStreakAsync(userId, h.Id),
+                    streak = await progress.CurrentStreakAsync(userId, h.Id, todayDate),
                 });
             }
 

@@ -24,3 +24,67 @@ jobs:
 
       - name: Test
         run: dotnet test api/Bonsai.Api.Tests --no-build --verbosity normal
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc -b
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the stack
+        run: |
+          echo "JWT_KEY=ci-only-$(openssl rand -hex 24)" > .env
+          docker compose up --build -d
+          # wait for the API to come up
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/health && break
+            sleep 2
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Playwright
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run browser smoke test
+        working-directory: web
+        env:
+          WEB_URL: http://localhost:3000
+          API_URL: http://localhost:8080
+        run: node e2e-smoke.mjs
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose logs --tail 100

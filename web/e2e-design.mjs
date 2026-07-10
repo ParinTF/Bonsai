@@ -1,6 +1,7 @@
+import os from 'node:os'
 import { chromium } from 'playwright'
 
-const shots = 'C:/Users/xibom/AppData/Local/Temp/'
+const shots = os.tmpdir() + '/'
 const WEB = process.env.WEB_URL ?? 'http://localhost:5173'
 const API = process.env.API_URL ?? 'http://localhost:5264'
 const browser = await chromium.launch()

@@ -1,18 +1,23 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Sparkles, Trash2, X } from 'lucide-react'
-import { ApiError, goalsApi } from '../lib/api'
+import { Archive, Check, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ApiError, goalsApi, type Goal } from '../lib/api'
+import { useI18n } from '../lib/i18n'
 import { ProgressBar } from '../components/ProgressBar'
 import { GoalGraphView } from '../components/GoalGraphView'
 import { AddChildForm, GoalEditor } from '../components/GoalEditor'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export function GoalDetailPage() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { data: goals, isLoading } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list })
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiContext, setAiContext] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState('')
   const [needsKey, setNeedsKey] = useState(false)
@@ -30,10 +35,10 @@ export function GoalDetailPage() {
     },
   })
 
-  if (isLoading) return <p className="text-muted-foreground">Loading…</p>
+  if (isLoading) return <p className="text-muted-foreground">{t('common.loading')}</p>
 
   const goal = goals?.find(g => g.id === id)
-  if (!goal) return <p className="text-destructive">Goal not found</p>
+  if (!goal) return <p className="text-destructive">{t('detail.notFound')}</p>
 
   // Subtree of this root goal only, non-archived
   const subtree = (goals ?? []).filter(
@@ -47,7 +52,9 @@ export function GoalDetailPage() {
     setAiError('')
     setNeedsKey(false)
     try {
-      await goalsApi.breakdown(goal.title, undefined, goal.id)
+      await goalsApi.breakdown(goal.title, aiContext.trim() || undefined, goal.id)
+      setAiOpen(false)
+      setAiContext('')
       invalidate()
     } catch (e) {
       if (e instanceof ApiError && e.code === 'llm_key_missing') setNeedsKey(true)
@@ -60,20 +67,18 @@ export function GoalDetailPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Back</Link>
+        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{t('detail.back')}</Link>
         <h1 className="text-xl font-bold flex-1 min-w-40 truncate">{goal.title}</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" onClick={() => setAddingChild(v => !v)}>
-            <Plus size={15} /> Add subgoal
+            <Plus size={15} /> {t('detail.addSubgoal')}
           </Button>
-          <Button
-            size="sm" variant="accent" onClick={breakdownWithAi} disabled={aiBusy}
-          >
-            <Sparkles size={15} /> {aiBusy ? 'Breaking down…' : 'Break down with AI'}
+          <Button size="sm" variant="accent" onClick={() => setAiOpen(v => !v)} disabled={aiBusy}>
+            <Sparkles size={15} /> {aiBusy ? t('detail.aiBusy') : t('detail.ai')}
           </Button>
           <Button
             size="sm" variant="ghost"
-            onClick={() => { if (confirm('Delete this goal and its whole subtree?')) removeGoal.mutate(goal.id) }}
+            onClick={() => { if (confirm(t('detail.deleteConfirm'))) removeGoal.mutate(goal.id) }}
             className="text-destructive hover:bg-destructive/10"
           >
             <Trash2 size={15} />
@@ -83,14 +88,29 @@ export function GoalDetailPage() {
 
       {aiError && <p className="text-sm text-destructive">{aiError}</p>}
 
+      {aiOpen && !needsKey && (
+        <div className="bg-card rounded-xl border border-accent/60 p-4 space-y-2 shadow-sm">
+          <textarea
+            value={aiContext}
+            onChange={e => setAiContext(e.target.value)}
+            placeholder={t('detail.aiContext')}
+            rows={2}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" variant="ghost" onClick={() => setAiOpen(false)}>{t('common.cancel')}</Button>
+            <Button size="sm" variant="accent" onClick={breakdownWithAi} disabled={aiBusy}>
+              <Sparkles size={14} /> {aiBusy ? t('detail.aiBusy') : t('detail.aiGo')}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {needsKey && (
         <div className="bg-accent/15 border border-accent rounded-xl p-4 flex items-center gap-3 flex-wrap">
-          <p className="text-sm flex-1 min-w-52">
-            AI breakdown needs an LLM API key. Bring your own key (Anthropic,
-            OpenAI, or Gemini) — it takes a minute to set up.
-          </p>
+          <p className="text-sm flex-1 min-w-52">{t('detail.needsKey')}</p>
           <Button size="sm" variant="accent" onClick={() => navigate('/settings')}>
-            Open Settings
+            {t('detail.openSettings')}
           </Button>
         </div>
       )}
@@ -98,7 +118,7 @@ export function GoalDetailPage() {
       {addingChild && (
         <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
           <p className="text-sm font-medium mb-2">
-            Add a subgoal under "{selected?.title ?? goal.title}"
+            {t('detail.addUnder')} "{selected?.title ?? goal.title}"
           </p>
           <AddChildForm
             parentId={selected?.id ?? goal.id}
@@ -110,35 +130,105 @@ export function GoalDetailPage() {
       <GoalGraphView goals={subtree} selectedId={selectedId} onSelect={setSelectedId} />
 
       {selected && (
-        <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="min-w-0">
-              <span className="text-sm font-medium">{selected.title}</span>
-              <span className="ml-2 text-xs text-muted-foreground">{selected.progressType}</span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {selected.id !== goal.id && (
-                <Button
-                  size="sm" variant="ghost"
-                  onClick={() => { if (confirm(`Delete "${selected.title}" and its subtree?`)) removeGoal.mutate(selected.id) }}
-                  className="text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 size={14} />
-                </Button>
-              )}
-              <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)} className="text-muted-foreground">
-                <X size={14} />
-              </Button>
-            </div>
-          </div>
-          <ProgressBar value={selected.progress} />
-          <GoalEditor goal={selected} onChanged={invalidate} />
-        </div>
+        <SelectedPanel
+          goal={selected}
+          isRoot={selected.id === goal.id}
+          onChanged={invalidate}
+          onDelete={() => {
+            if (confirm(`"${selected.title}" ${t('detail.deleteOneConfirm')}`)) removeGoal.mutate(selected.id)
+          }}
+          onArchived={() => {
+            setSelectedId(null)
+            if (selected.id === goal.id) navigate('/')
+          }}
+          onClose={() => setSelectedId(null)}
+        />
       )}
 
-      <p className="text-xs text-muted-foreground">
-        Drag nodes to arrange (saved automatically) · Click a node to edit its progress
-      </p>
+      <p className="text-xs text-muted-foreground">{t('detail.hint')}</p>
+    </div>
+  )
+}
+
+function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose }: {
+  goal: Goal
+  isRoot: boolean
+  onChanged: () => void
+  onDelete: () => void
+  onArchived: () => void
+  onClose: () => void
+}) {
+  const { t } = useI18n()
+  const qc = useQueryClient()
+  const [renaming, setRenaming] = useState(false)
+  const [title, setTitle] = useState(goal.title)
+
+  const rename = useMutation({
+    mutationFn: () => goalsApi.update(goal.id, { title: title.trim() }),
+    onSuccess: () => { setRenaming(false); onChanged() },
+  })
+
+  const archive = useMutation({
+    mutationFn: () => goalsApi.update(goal.id, { status: 'archived' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      qc.invalidateQueries({ queryKey: ['today'] })
+      qc.invalidateQueries({ queryKey: ['this-week'] })
+      onArchived()
+    },
+  })
+
+  return (
+    <div className="bg-card rounded-xl border border-primary/30 p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          {renaming ? (
+            <form
+              onSubmit={e => { e.preventDefault(); if (title.trim()) rename.mutate() }}
+              className="flex gap-1 items-center"
+            >
+              <Input value={title} onChange={e => setTitle(e.target.value)} autoFocus className="h-8 text-sm" />
+              <Button size="sm" type="submit" disabled={rename.isPending || !title.trim()}>
+                <Check size={14} />
+              </Button>
+            </form>
+          ) : (
+            <>
+              <span className="text-sm font-medium">{goal.title}</span>
+              <span className="ml-2 text-xs text-muted-foreground">{goal.progressType}</span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            size="sm" variant="ghost" title={t('detail.rename')}
+            onClick={() => { setTitle(goal.title); setRenaming(v => !v) }}
+            className="text-muted-foreground"
+          >
+            <Pencil size={14} />
+          </Button>
+          <Button
+            size="sm" variant="ghost" title={t('detail.archive')}
+            onClick={() => { if (confirm(t('detail.archiveConfirm'))) archive.mutate() }}
+            className="text-muted-foreground"
+          >
+            <Archive size={14} />
+          </Button>
+          {!isRoot && (
+            <Button
+              size="sm" variant="ghost" onClick={onDelete}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 size={14} />
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={onClose} className="text-muted-foreground">
+            <X size={14} />
+          </Button>
+        </div>
+      </div>
+      <ProgressBar value={goal.progress} />
+      <GoalEditor goal={goal} onChanged={onChanged} />
     </div>
   )
 }

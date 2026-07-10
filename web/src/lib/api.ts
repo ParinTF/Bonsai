@@ -1,5 +1,18 @@
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:5264'
 
+/** The user's local calendar date (yyyy-MM-dd) — sent to the server so
+ * "today" follows the user's timezone, not UTC. */
+export function localDate(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Monday of the user's local week (yyyy-MM-dd). */
+export function localMonday(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return localDate(d)
+}
+
 let token: string | null = localStorage.getItem('bonsai_token')
 
 export function setToken(t: string | null) {
@@ -134,7 +147,7 @@ export const goalsApi = {
   position: (id: string, x: number, y: number) =>
     api<{ id: string; x: number; y: number }>(`/goals/${id}/position`, { method: 'PATCH', body: JSON.stringify({ x, y }) }),
   weeklyAttempt: (id: string, result: 'pass' | 'fail') =>
-    api<{ goalId: string; weekOf: string; result: string }>(`/goals/${id}/weekly-attempt`, { method: 'POST', body: JSON.stringify({ result }) }),
+    api<{ goalId: string; weekOf: string; result: string }>(`/goals/${id}/weekly-attempt`, { method: 'POST', body: JSON.stringify({ result, weekOf: localMonday() }) }),
   breakdown: (title: string, context?: string, parentId?: string) =>
     api<Goal[]>('/goals/breakdown', { method: 'POST', body: JSON.stringify({ title, context, parentId }) }),
 }
@@ -152,6 +165,12 @@ export interface LlmSettings {
   keyLast4: string | null
 }
 
+export const accountApi = {
+  changePassword: (currentPassword: string | null, newPassword: string) =>
+    api<{ ok: boolean }>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
+  deleteAccount: () => api<void>('/account', { method: 'DELETE' }),
+}
+
 export const settingsApi = {
   getLlm: () => api<LlmSettings>('/settings/llm'),
   // The key goes straight to the backend and is never kept client-side.
@@ -161,8 +180,8 @@ export const settingsApi = {
 }
 
 export const habitsApi = {
-  today: () => api<TodayResponse>('/today'),
-  month: (month?: string) => api<MonthCheckins>(`/checkins${month ? `?month=${month}` : ''}`),
+  today: () => api<TodayResponse>(`/today?date=${localDate()}`),
+  month: (month?: string) => api<MonthCheckins>(`/checkins?month=${month ?? localDate().slice(0, 7)}`),
   checkin: (id: string, date?: string) =>
-    api<{ goalId: string; date: string; done: boolean }>(`/habits/${id}/checkin${date ? `?date=${date}` : ''}`, { method: 'PATCH' }),
+    api<{ goalId: string; date: string; done: boolean }>(`/habits/${id}/checkin?date=${date ?? localDate()}`, { method: 'PATCH' }),
 }

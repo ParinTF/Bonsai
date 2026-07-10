@@ -1,17 +1,20 @@
+import os from 'node:os'
 import { chromium } from 'playwright'
 
-const shots = 'C:/Users/xibom/AppData/Local/Temp/'
+const shots = os.tmpdir() + '/'
+const WEB = process.env.WEB_URL ?? 'http://localhost:5173'
+const API = process.env.API_URL ?? 'http://localhost:5264'
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 
 const email = 'dash' + Date.now() + '@bonsai.dev'
-const reg = await (await fetch('http://localhost:5264/auth/register', {
+const reg = await (await fetch(API + '/auth/register', {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, password: 'password123' }),
 })).json()
 const token = reg.token
 const post = (path, body) =>
-  fetch('http://localhost:5264' + path, {
+  fetch(API + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
     body: JSON.stringify(body),
@@ -28,11 +31,11 @@ for (const [weekOf, result] of [['2026-06-15','pass'],['2026-06-22','fail'],['20
 }
 
 // Login and view dashboard
-await page.goto('http://localhost:5173/login')
+await page.goto(WEB + '/login')
 await page.fill('input[type=email]', email)
 await page.fill('input[type=password]', 'password123')
 await page.click('button[type=submit]')
-await page.waitForURL('http://localhost:5173/')
+await page.waitForURL(WEB + '/')
 await page.waitForTimeout(1000)
 await page.screenshot({ path: shots + 'dash1-initial.png' })
 

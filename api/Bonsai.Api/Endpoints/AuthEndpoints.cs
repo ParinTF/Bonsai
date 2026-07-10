@@ -8,12 +8,13 @@ namespace Bonsai.Api.Endpoints;
 public record RegisterRequest(string Email, string Password);
 public record LoginRequest(string Email, string Password);
 public record GoogleLoginRequest(string IdToken);
+public record ChangePasswordRequest(string? CurrentPassword, string NewPassword);
 
 public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/auth");
+        var group = app.MapGroup("/auth").RequireRateLimiting("auth");
 
         group.MapPost("/register", async (RegisterRequest req, MongoContext db, TokenService tokens) =>
         {
@@ -50,6 +51,42 @@ public static class AuthEndpoints
 
             return Results.Ok(new { token = tokens.CreateToken(user), email = user.Email });
         });
+
+        // Change (or set, for Google-only accounts) the password.
+        group.MapPost("/change-password", async (ChangePasswordRequest req, System.Security.Claims.ClaimsPrincipal principal,
+            MongoContext db) =>
+        {
+            if (principal.HasClaim("isDemo", "true"))
+                return Results.Json(new { error = "The demo account can't be modified" }, statusCode: 403);
+            if (req.NewPassword.Length < 8)
+                return Results.BadRequest(new { error = "New password must be at least 8 characters" });
+
+            var userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value;
+            var user = await db.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user is null) return Results.Unauthorized();
+
+            // Accounts created via Google have no password yet — let them set one.
+            if (user.PasswordHash is not null &&
+                (req.CurrentPassword is null || !BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash)))
+                return Results.BadRequest(new { error = "Current password is incorrect" });
+
+            await db.Users.UpdateOneAsync(u => u.Id == userId,
+                Builders<User>.Update.Set(u => u.PasswordHash, BCrypt.Net.BCrypt.HashPassword(req.NewPassword)));
+            return Results.Ok(new { ok = true });
+        }).RequireAuthorization();
+
+        // Delete the account and every piece of its data. DELETE verb → the
+        // demo-guard middleware already blocks this for demo tokens.
+        app.MapDelete("/account", async (System.Security.Claims.ClaimsPrincipal principal, MongoContext db) =>
+        {
+            var userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value;
+            await db.Goals.DeleteManyAsync(g => g.UserId == userId);
+            await db.Checkins.DeleteManyAsync(c => c.UserId == userId);
+            await db.WeeklyAttempts.DeleteManyAsync(w => w.UserId == userId);
+            await db.UserSettings.DeleteManyAsync(s => s.UserId == userId);
+            await db.Users.DeleteOneAsync(u => u.Id == userId);
+            return Results.NoContent();
+        }).RequireAuthorization();
 
         // Instant shared demo account — no signup. Seeds example data on first use.
         group.MapPost("/demo", async (DemoService demo, TokenService tokens) =>

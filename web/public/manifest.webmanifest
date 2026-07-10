@@ -1,0 +1,13 @@
+{
+  "name": "Bonsai — hierarchical goal tracker",
+  "short_name": "Bonsai",
+  "description": "Break big goals into a draggable tree of daily habits and weekly commitments.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F1E8",
+  "theme_color": "#1B3A2B",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

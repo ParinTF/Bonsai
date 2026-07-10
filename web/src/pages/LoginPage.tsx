@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { authApi, setToken } from '../lib/api'
 import { googleClientId } from '../main'
+import { useI18n } from '../lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 export function LoginPage() {
+  const { t } = useI18n()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,7 +24,7 @@ export function LoginPage() {
       setToken(res.token)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed')
+      setError(err instanceof Error ? err.message : t('login.error'))
     } finally {
       setBusy(false)
     }
@@ -39,7 +41,7 @@ export function LoginPage() {
       setToken(res.token)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : t('login.error'))
     } finally {
       setBusy(false)
     }
@@ -52,19 +54,19 @@ export function LoginPage() {
           <img src="/Bonsai.svg" alt="Bonsai" className="h-12 w-auto" />
         </h1>
         <p className="text-sm text-muted-foreground text-center">
-          {mode === 'login' ? 'Sign in to tend your goals' : 'Create a new account'}
+          {mode === 'login' ? t('login.tagline') : t('login.taglineRegister')}
         </p>
         <Input
-          type="email" required placeholder="Email" value={email}
+          type="email" required placeholder={t('login.email')} value={email}
           onChange={e => setEmail(e.target.value)}
         />
         <Input
-          type="password" required minLength={8} placeholder="Password (min 8 characters)" value={password}
+          type="password" required minLength={8} placeholder={t('login.password')} value={password}
           onChange={e => setPassword(e.target.value)}
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={busy} className="w-full">
-          {busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Sign up'}
+          {busy ? t('login.working') : mode === 'login' ? t('login.signin') : t('login.signup')}
         </Button>
         <Button
           type="button" variant="accent" disabled={busy} className="w-full"
@@ -76,25 +78,25 @@ export function LoginPage() {
               setToken(res.token)
               navigate('/')
             } catch (err) {
-              setError(err instanceof Error ? err.message : 'Demo unavailable')
+              setError(err instanceof Error ? err.message : t('login.error'))
             } finally {
               setBusy(false)
             }
           }}
         >
-          ✨ Try Demo (no signup)
+          {t('login.demo')}
         </Button>
         {googleClientId && (
           <>
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or</span>
+              <span className="text-xs text-muted-foreground">{t('login.or')}</span>
               <div className="flex-1 h-px bg-border" />
             </div>
             <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={cred => { if (cred.credential) googleSignIn(cred.credential) }}
-                onError={() => setError('Google sign-in failed')}
+                onError={() => setError(t('login.error'))}
               />
             </div>
           </>
@@ -104,7 +106,7 @@ export function LoginPage() {
           onClick={() => setMode(m => (m === 'login' ? 'register' : 'login'))}
           className="w-full text-sm text-accent hover:underline"
         >
-          {mode === 'login' ? 'No account? Sign up' : 'Have an account? Sign in'}
+          {mode === 'login' ? t('login.toSignup') : t('login.toSignin')}
         </button>
       </form>
     </div>

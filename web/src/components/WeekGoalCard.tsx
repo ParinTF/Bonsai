@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { goalsApi, type WeekItem } from '../lib/api'
+import { useI18n } from '../lib/i18n'
 import { ProgressBar } from './ProgressBar'
 import { Button } from '@/components/ui/button'
 
 /** Weekly goal card with pass/fail recording and a 4-week history dot row. */
 export function WeekGoalCard({ item }: { item: WeekItem }) {
+  const { t } = useI18n()
   const qc = useQueryClient()
   const record = useMutation({
     mutationFn: (result: 'pass' | 'fail') => goalsApi.weeklyAttempt(item.goal.id, result),
@@ -22,7 +24,7 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-sm font-medium">{item.goal.title}</span>
         <div className="flex gap-2 items-center">
-          <div className="flex gap-1 mr-1" title="Last 4 weeks">
+          <div className="flex gap-1 mr-1" title={t('week.last4')}>
             {dots.map(a => (
               <span
                 key={a.weekOf}
@@ -30,21 +32,21 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
                 className={`w-2.5 h-2.5 rounded-full ${a.result === 'pass' ? 'bg-primary' : 'bg-muted-foreground/30'}`}
               />
             ))}
-            {dots.length === 0 && <span className="text-xs text-muted-foreground">no attempts yet</span>}
+            {dots.length === 0 && <span className="text-xs text-muted-foreground">{t('week.noAttempts')}</span>}
           </div>
           <Button
             size="sm" variant="outline"
             onClick={() => record.mutate('pass')} disabled={record.isPending}
             className="text-primary border-primary/40 hover:bg-primary/10"
           >
-            ✓ Pass
+            {t('week.pass')}
           </Button>
           <Button
             size="sm" variant="outline"
             onClick={() => record.mutate('fail')} disabled={record.isPending}
             className="text-destructive border-destructive/30 hover:bg-destructive/10"
           >
-            ✗ Fail
+            {t('week.fail')}
           </Button>
         </div>
       </div>

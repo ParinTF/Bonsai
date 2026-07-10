@@ -1,18 +1,21 @@
+import os from 'node:os'
 import { chromium } from 'playwright'
 
-const shots = 'C:/Users/xibom/AppData/Local/Temp/'
+const shots = os.tmpdir() + '/'
+const WEB = process.env.WEB_URL ?? 'http://localhost:5173'
+const API = process.env.API_URL ?? 'http://localhost:5264'
 const browser = await chromium.launch()
 const page = await browser.newPage()
 
 // Register a fresh user and build a small tree via the API for speed
 const email = 'graph' + Date.now() + '@bonsai.dev'
-const reg = await (await fetch('http://localhost:5264/auth/register', {
+const reg = await (await fetch(API + '/auth/register', {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email, password: 'password123' }),
 })).json()
 const token = reg.token
 const post = (path, body) =>
-  fetch('http://localhost:5264' + path, {
+  fetch(API + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
     body: JSON.stringify(body),
@@ -24,11 +27,11 @@ await post('/goals', { title: 'เวท 3 ครั้ง/สัปดาห์
 await post('/goals', { title: 'ซ้อม 5K', progressType: 'numeric', parentId: a.id, numeric: { target: 5, current: 2, unit: 'km' } })
 
 // Login in the browser and open the graph
-await page.goto('http://localhost:5173/login')
+await page.goto(WEB + '/login')
 await page.fill('input[type=email]', email)
 await page.fill('input[type=password]', 'password123')
 await page.click('button[type=submit]')
-await page.waitForURL('http://localhost:5173/')
+await page.waitForURL(WEB + '/')
 await page.click('text=ฟิตร่างกาย')
 await page.waitForSelector('.react-flow__node')
 await page.waitForTimeout(1200)
@@ -70,7 +73,7 @@ if (Math.abs(posAfterSelect.x - posAfterDrag.x) > 2 || Math.abs(posAfterSelect.y
 }
 
 // Verify persistence via the API
-const goals = await fetch('http://localhost:5264/goals', {
+const goals = await fetch(API + '/goals', {
   headers: { Authorization: 'Bearer ' + token },
 }).then(r => r.json())
 const dragged = goals.find(g => g.title.startsWith('เวท'))
