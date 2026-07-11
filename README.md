@@ -65,6 +65,8 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 
 Separating the math into pure classes keeps almost all of these tests free of MongoDB mocks. CI runs them on every push, builds the frontend, and then boots the whole Docker Compose stack to run a Playwright browser smoke test against it. The local `web/e2e-*.mjs` scripts cover more flows, including a regression test that drags a node, clicks empty canvas, and asserts zero position drift.
 
+The three screenshots at the top of this README are themselves CI output: after `e2e` passes on a push to `main`/`master`, a `screenshots` job seeds a fresh account (dates computed relative to "today", never hardcoded), captures the dashboard/today/graph views with Playwright, and commits any changed PNGs straight back to the branch — so they never drift from the current UI. See [`web/e2e-readme-screenshots.mjs`](web/e2e-readme-screenshots.mjs) and the `screenshots` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 ## AI integration (BYOK)
 
 `POST /goals/breakdown` asks an LLM to split a goal into a tree whose **depth the model chooses** (capped at 6 levels) based on the goal's real complexity. The structured output is a *flat* item list — `{ tempId, parentTempId, title, progressType, weeklyTarget? }` — which sidesteps the no-recursive-schema limitation of every provider's structured-output mode. [`BreakdownTreeBuilder.cs`](api/Bonsai.Api/Services/Llm/BreakdownTreeBuilder.cs) (pure, unit-tested) then validates the list — single root, no unknown/duplicate references, no cycles, depth ≤ 6 — and materialises it parents-first into real goal documents with correct `parentId`/`ancestors` links. Invalid model output is rejected with a clean error, never a crash.
