@@ -25,6 +25,38 @@ public class BreakdownService(
         return await provider.BreakdownAsync(goalTitle, context, apiKey);
     }
 
+    /// <summary>
+    /// Layer 2 of the weekly-goal suggestion. Returns null (never throws) when the user has no
+    /// usable LLM key or the provider call fails/times out, so the endpoint can fall back to the
+    /// rule-only response. A 15s timeout bounds a slow provider.
+    /// </summary>
+    public async Task<WeeklySuggestion?> SuggestNextWeeklyAsync(string userId, string prompt)
+    {
+        string providerName, apiKey;
+        try
+        {
+            (providerName, apiKey) = await ResolveKeyAsync(userId);
+        }
+        catch (LlmKeyMissingException)
+        {
+            return null; // no key configured → layer 2 skipped
+        }
+
+        var provider = providers.FirstOrDefault(p => p.Name == providerName);
+        if (provider is null) return null;
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            return await provider.SuggestNextWeeklyAsync(prompt, apiKey, cts.Token);
+        }
+        catch (Exception)
+        {
+            // Provider error, timeout, or unparseable output — advisory feature, so degrade quietly.
+            return null;
+        }
+    }
+
     private async Task<(string Provider, string ApiKey)> ResolveKeyAsync(string userId)
     {
         var settings = await db.UserSettings.Find(s => s.UserId == userId).FirstOrDefaultAsync();

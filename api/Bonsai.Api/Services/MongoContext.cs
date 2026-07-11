@@ -11,6 +11,8 @@ public class MongoContext
     public IMongoCollection<Checkin> Checkins { get; }
     public IMongoCollection<WeeklyAttempt> WeeklyAttempts { get; }
     public IMongoCollection<UserSettings> UserSettings { get; }
+    public IMongoCollection<ProgressSnapshot> ProgressSnapshots { get; }
+    public IMongoCollection<SuggestionEvent> SuggestionEvents { get; }
 
     public MongoContext(IMongoClient client, IConfiguration config)
     {
@@ -21,6 +23,8 @@ public class MongoContext
         Checkins = Database.GetCollection<Checkin>("checkins");
         WeeklyAttempts = Database.GetCollection<WeeklyAttempt>("weeklyAttempts");
         UserSettings = Database.GetCollection<UserSettings>("userSettings");
+        ProgressSnapshots = Database.GetCollection<ProgressSnapshot>("progressSnapshots");
+        SuggestionEvents = Database.GetCollection<SuggestionEvent>("suggestionEvents");
     }
 
     public async Task EnsureIndexesAsync()
@@ -45,5 +49,13 @@ public class MongoContext
         await UserSettings.Indexes.CreateOneAsync(new CreateIndexModel<UserSettings>(
             Builders<UserSettings>.IndexKeys.Ascending(s => s.UserId),
             new CreateIndexOptions { Unique = true }));
+
+        // One snapshot per goal per day (idempotent upsert key).
+        await ProgressSnapshots.Indexes.CreateOneAsync(new CreateIndexModel<ProgressSnapshot>(
+            Builders<ProgressSnapshot>.IndexKeys.Ascending(s => s.UserId).Ascending(s => s.GoalId).Ascending(s => s.Date),
+            new CreateIndexOptions { Unique = true }));
+
+        await SuggestionEvents.Indexes.CreateOneAsync(new CreateIndexModel<SuggestionEvent>(
+            Builders<SuggestionEvent>.IndexKeys.Ascending(e => e.UserId).Descending(e => e.CreatedAt)));
     }
 }

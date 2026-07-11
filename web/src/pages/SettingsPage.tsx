@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, KeyRound, Trash2, UserRound } from 'lucide-react'
+import { CheckCircle, Download, KeyRound, Trash2, UserRound } from 'lucide-react'
 import { accountApi, isDemoToken, setToken, settingsApi, type LlmProvider } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { Button } from '@/components/ui/button'
@@ -143,6 +143,12 @@ function AccountSection() {
     onError: (e: Error) => setError(e.message),
   })
 
+  const exportData = useMutation({
+    mutationFn: accountApi.export,
+    onSuccess: data => downloadJson(data, `bonsai-export-${new Date().toISOString().slice(0, 10)}.json`),
+    onError: (e: Error) => setError(e.message),
+  })
+
   if (demo) return null // shared demo account: no password/delete management
 
   return (
@@ -171,6 +177,13 @@ function AccountSection() {
         </Button>
       </form>
 
+      <div className="border-t border-border pt-4 space-y-2">
+        <p className="text-sm text-muted-foreground">{t('settings.exportDesc')}</p>
+        <Button variant="outline" onClick={() => exportData.mutate()} disabled={exportData.isPending}>
+          <Download size={14} /> {exportData.isPending ? t('common.loading') : t('settings.exportData')}
+        </Button>
+      </div>
+
       <div className="border-t border-border pt-4">
         <Button
           variant="destructive"
@@ -182,4 +195,15 @@ function AccountSection() {
       </div>
     </section>
   )
+}
+
+/** Serialise `data` and trigger a client-side download. */
+function downloadJson(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }

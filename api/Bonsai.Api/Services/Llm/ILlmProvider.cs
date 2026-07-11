@@ -48,6 +48,14 @@ public interface ILlmProvider
     Task<bool> ValidateKeyAsync(string apiKey, CancellationToken ct = default);
 
     Task<BreakdownResult> BreakdownAsync(string goalTitle, string? context, string apiKey, CancellationToken ct = default);
+
+    /// <summary>
+    /// Layer 2 of "suggest next weekly goal": the caller already picked a Direction (rule-based);
+    /// this asks the model for the concrete next commitment. <paramref name="prompt"/> is fully
+    /// composed by <see cref="WeeklySuggestionPrompt"/>. Throws <see cref="LlmProviderException"/>
+    /// on any provider/parse failure so the caller can fall back to the rule-only response.
+    /// </summary>
+    Task<WeeklySuggestion> SuggestNextWeeklyAsync(string prompt, string apiKey, CancellationToken ct = default);
 }
 
 /// <summary>Prompt shared by every provider.</summary>

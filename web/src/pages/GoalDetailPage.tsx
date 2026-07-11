@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, Check, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { Archive, Check, Pencil, Plus, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { ApiError, goalsApi, type Goal } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { ProgressBar } from '../components/ProgressBar'
+import { Sparkline } from '../components/Sparkline'
 import { GoalGraphView } from '../components/GoalGraphView'
 import { AddChildForm, GoalEditor } from '../components/GoalEditor'
 import { Button } from '@/components/ui/button'
@@ -23,8 +24,26 @@ export function GoalDetailPage() {
   const [needsKey, setNeedsKey] = useState(false)
   const [addingChild, setAddingChild] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Set right after an archive so we can offer a transient Undo instead of a hard delete.
+  const [archivedInfo, setArchivedInfo] = useState<{ id: string; title: string } | null>(null)
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['goals'] })
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['goals'] })
+    qc.invalidateQueries({ queryKey: ['today'] })
+    qc.invalidateQueries({ queryKey: ['this-week'] })
+  }
+
+  const restore = useMutation({
+    mutationFn: (goalId: string) => goalsApi.update(goalId, { status: 'active' }),
+    onSuccess: () => { setArchivedInfo(null); invalidate() },
+  })
+
+  // Auto-dismiss the Undo banner after a few seconds.
+  useEffect(() => {
+    if (!archivedInfo) return
+    const timer = setTimeout(() => setArchivedInfo(null), 7000)
+    return () => clearTimeout(timer)
+  }, [archivedInfo])
 
   const removeGoal = useMutation({
     mutationFn: (goalId: string) => goalsApi.remove(goalId),
@@ -86,6 +105,22 @@ export function GoalDetailPage() {
         </div>
       </div>
 
+      {archivedInfo && (
+        <div className="bg-muted border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+          <Archive size={16} className="text-muted-foreground shrink-0" />
+          <span className="text-sm flex-1 min-w-0 truncate">
+            {t('detail.archivedToast')} "{archivedInfo.title}"
+          </span>
+          <Button
+            size="sm" variant="outline"
+            onClick={() => restore.mutate(archivedInfo.id)}
+            disabled={restore.isPending}
+          >
+            <Undo2 size={14} /> {t('common.undo')}
+          </Button>
+        </div>
+      )}
+
       {aiError && <p className="text-sm text-destructive">{aiError}</p>}
 
       {aiOpen && !needsKey && (
@@ -137,9 +172,9 @@ export function GoalDetailPage() {
           onDelete={() => {
             if (confirm(`"${selected.title}" ${t('detail.deleteOneConfirm')}`)) removeGoal.mutate(selected.id)
           }}
-          onArchived={() => {
+          onArchived={g => {
             setSelectedId(null)
-            if (selected.id === goal.id) navigate('/')
+            setArchivedInfo({ id: g.id, title: g.title })
           }}
           onClose={() => setSelectedId(null)}
         />
@@ -155,13 +190,18 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
   isRoot: boolean
   onChanged: () => void
   onDelete: () => void
-  onArchived: () => void
+  onArchived: (g: Goal) => void
   onClose: () => void
 }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState(goal.title)
+
+  const { data: history } = useQuery({
+    queryKey: ['history', goal.id],
+    queryFn: () => goalsApi.history(goal.id),
+  })
 
   const rename = useMutation({
     mutationFn: () => goalsApi.update(goal.id, { title: title.trim() }),
@@ -174,7 +214,7 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
       qc.invalidateQueries({ queryKey: ['goals'] })
       qc.invalidateQueries({ queryKey: ['today'] })
       qc.invalidateQueries({ queryKey: ['this-week'] })
-      onArchived()
+      onArchived(goal)
     },
   })
 
@@ -228,6 +268,12 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
         </div>
       </div>
       <ProgressBar value={goal.progress} />
+      {history && history.points.length >= 2 && (
+        <div className="mt-3">
+          <p className="text-xs text-muted-foreground mb-1">{t('detail.trend')}</p>
+          <Sparkline points={history.points} />
+        </div>
+      )}
       <GoalEditor goal={goal} onChanged={onChanged} />
     </div>
   )

@@ -47,7 +47,32 @@ public class ProgressService(MongoContext db)
             Builders<Goal>.Update.Set(x => x.Progress, g.Progress))).ToList<WriteModel<Goal>>();
         await db.Goals.BulkWriteAsync(writes);
 
+        await SnapshotProgressAsync(userId, goals);
         return goals;
+    }
+
+    /// <summary>
+    /// Records today's progress for each non-archived goal as an idempotent upsert
+    /// (one row per goal per UTC day), building the time series that trend charts read.
+    /// </summary>
+    private async Task SnapshotProgressAsync(string userId, List<Goal> goals)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+        var snapshots = goals
+            .Where(g => g.Status != GoalStatuses.Archived)
+            .Select(g => new UpdateOneModel<ProgressSnapshot>(
+                Builders<ProgressSnapshot>.Filter.Where(s =>
+                    s.UserId == userId && s.GoalId == g.Id && s.Date == today),
+                Builders<ProgressSnapshot>.Update
+                    .Set(s => s.Progress, g.Progress)
+                    .SetOnInsert(s => s.UserId, userId)
+                    .SetOnInsert(s => s.GoalId, g.Id)
+                    .SetOnInsert(s => s.Date, today))
+            { IsUpsert = true })
+            .ToList<WriteModel<ProgressSnapshot>>();
+
+        if (snapshots.Count > 0)
+            await db.ProgressSnapshots.BulkWriteAsync(snapshots, new BulkWriteOptions { IsOrdered = false });
     }
 
     public async Task<int> CurrentStreakAsync(string userId, string goalId, DateOnly? today = null)

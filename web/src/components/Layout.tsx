@@ -43,6 +43,7 @@ export function Layout() {
           <NavLink to="/" end className={linkClass}>{t('nav.goals')}</NavLink>
           <NavLink to="/today" className={linkClass}>{t('nav.today')}</NavLink>
           <NavLink to="/week" className={linkClass}>{t('nav.week')}</NavLink>
+          <NavLink to="/review" className={linkClass}>{t('nav.review')}</NavLink>
           <button
             onClick={() => setLang(lang === 'en' ? 'th' : 'en')}
             className="ml-auto px-2 py-1 rounded text-xs font-semibold text-muted-foreground hover:bg-secondary"

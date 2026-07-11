@@ -74,4 +74,43 @@ public class OpenAiProvider(IHttpClientFactory httpFactory) : ILlmProvider
         return JsonSerializer.Deserialize<BreakdownResult>(text, JsonOpts)
             ?? throw new LlmProviderException("OpenAI returned unparseable JSON");
     }
+
+    public async Task<WeeklySuggestion> SuggestNextWeeklyAsync(string prompt, string apiKey, CancellationToken ct = default)
+    {
+        var body = new JsonObject
+        {
+            ["model"] = "gpt-4o-mini",
+            ["messages"] = new JsonArray(new JsonObject { ["role"] = "user", ["content"] = prompt }),
+            ["response_format"] = new JsonObject
+            {
+                ["type"] = "json_schema",
+                ["json_schema"] = new JsonObject
+                {
+                    ["name"] = "weekly_suggestion",
+                    ["strict"] = true,
+                    ["schema"] = JsonNode.Parse(WeeklySuggestionSchema.Json),
+                },
+            },
+        };
+
+        HttpResponseMessage res;
+        try
+        {
+            res = await Client(apiKey).PostAsync("https://api.openai.com/v1/chat/completions",
+                new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"), ct);
+        }
+        catch (Exception)
+        {
+            throw new LlmProviderException("Could not reach OpenAI");
+        }
+
+        if (!res.IsSuccessStatusCode)
+            throw new LlmProviderException($"OpenAI request failed ({(int)res.StatusCode})");
+
+        var json = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct));
+        var text = json?["choices"]?[0]?["message"]?["content"]?.GetValue<string>()
+            ?? throw new LlmProviderException("OpenAI returned no content");
+        return JsonSerializer.Deserialize<WeeklySuggestion>(text, JsonOpts)
+            ?? throw new LlmProviderException("OpenAI returned unparseable JSON");
+    }
 }

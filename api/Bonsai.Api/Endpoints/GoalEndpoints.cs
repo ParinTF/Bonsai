@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Bonsai.Api.Models;
 using Bonsai.Api.Services;
+using Bonsai.Api.Services.Llm;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -39,6 +40,7 @@ public static class GoalEndpoints
             return Results.Ok(weekly.Select(g => new
             {
                 goal = g,
+                weeklyStreak = ProgressCalculator.WeeklyStreak(attempts.Where(a => a.GoalId == g.Id)),
                 attempts = attempts
                     .Where(a => a.GoalId == g.Id)
                     .OrderByDescending(a => a.WeekOf)
@@ -164,6 +166,144 @@ public static class GoalEndpoints
 
             return Results.Ok(new { goalId = id, weekOf, result = req.Result });
         });
+
+        // Suggest the next weekly commitment after an attempt. Two layers:
+        //   1. WeeklySuggestionCalculator (pure) picks a Direction from the recent results + checkin rate.
+        //   2. If the user has an LLM key, ask it for concrete { title, progressType, reason }.
+        // The LLM layer is best-effort: any failure degrades to the rule-only response.
+        group.MapPost("/{weeklyGoalId}/suggest-next", async (string weeklyGoalId, ClaimsPrincipal user,
+            MongoContext db, BreakdownService breakdown) =>
+        {
+            var userId = user.UserId();
+            var allGoals = await db.Goals.Find(g => g.UserId == userId).ToListAsync();
+            var goal = allGoals.FirstOrDefault(g => g.Id == weeklyGoalId);
+            if (goal is null) return Results.NotFound();
+            if (goal.ProgressType != ProgressTypes.Weekly)
+                return Results.BadRequest(new { error = "suggest-next only applies to weekly goals" });
+
+            // Latest attempt plus up to 2 weeks before it, newest first.
+            var attempts = await db.WeeklyAttempts
+                .Find(a => a.UserId == userId && a.GoalId == weeklyGoalId)
+                .SortByDescending(a => a.WeekOf)
+                .Limit(3)
+                .ToListAsync();
+            if (attempts.Count == 0)
+                return Results.BadRequest(new { error = "No weekly attempts recorded for this goal yet" });
+
+            // Checkin completion rate of daily-habit children during the latest attempt's week.
+            double? checkinRate = null;
+            var dailyChildIds = allGoals
+                .Where(g => g.ParentId == weeklyGoalId && g.ProgressType == ProgressTypes.Daily
+                    && g.Status == GoalStatuses.Active)
+                .Select(g => g.Id)
+                .ToList();
+            if (dailyChildIds.Count > 0)
+            {
+                var monday = DateOnly.Parse(attempts[0].WeekOf);
+                var weekDates = Enumerable.Range(0, 7).Select(i => monday.AddDays(i).ToString("yyyy-MM-dd")).ToList();
+                var doneCount = await db.Checkins.CountDocumentsAsync(c =>
+                    c.UserId == userId && dailyChildIds.Contains(c.GoalId) && weekDates.Contains(c.Date) && c.Done);
+                checkinRate = Math.Round((double)doneCount / (7 * dailyChildIds.Count), 3);
+            }
+
+            // Layer 1 — rule-based direction.
+            var results = attempts.Select(a => a.Result).ToList();
+            var direction = WeeklySuggestionCalculator.Calculate(results, checkinRate);
+
+            // Layer 2 — optional LLM content. Returns null when no key / on any failure.
+            var bigPicture = RenderTree(allGoals);
+            var recentWeeklyTitles = allGoals
+                .Where(g => g.ProgressType == ProgressTypes.Weekly && g.ParentId == goal.ParentId)
+                .OrderByDescending(g => g.UpdatedAt)
+                .Select(g => g.Title)
+                .Take(3)
+                .ToList();
+            var prompt = WeeklySuggestionPrompt.Build(direction, bigPicture, goal.Title, recentWeeklyTitles);
+            var llm = await breakdown.SuggestNextWeeklyAsync(userId, prompt);
+
+            return Results.Ok(new
+            {
+                goalId = weeklyGoalId,
+                parentId = goal.ParentId,
+                weekOf = attempts[0].WeekOf,
+                latestResult = results[0],
+                direction = direction.Token(),
+                reasonCode = direction.ReasonCode(),
+                checkinRate,
+                consecutiveFails = results.TakeWhile(r => r == "fail").Count(),
+                source = llm is null ? "rule" : "llm",
+                // Present only when the LLM produced content:
+                title = llm?.Title,
+                progressType = llm is null ? null
+                    : (ProgressTypes.All.Contains(llm.ProgressType) ? llm.ProgressType : ProgressTypes.Weekly),
+                reason = llm?.Reason,
+            });
+        });
+
+        // Progress history (time series) for a single goal — for trend charts.
+        group.MapGet("/{id}/history", async (string id, int? days, ClaimsPrincipal user, MongoContext db) =>
+        {
+            var userId = user.UserId();
+            var goal = await db.Goals.Find(g => g.Id == id && g.UserId == userId).FirstOrDefaultAsync();
+            if (goal is null) return Results.NotFound();
+
+            var window = Math.Clamp(days ?? 30, 1, 365);
+            var since = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-(window - 1)).ToString("yyyy-MM-dd");
+            var points = await db.ProgressSnapshots
+                .Find(s => s.UserId == userId && s.GoalId == id && string.Compare(s.Date, since) >= 0)
+                .SortBy(s => s.Date)
+                .Project(s => new { date = s.Date, progress = s.Progress })
+                .ToListAsync();
+
+            return Results.Ok(new { goalId = id, points });
+        });
+
+        // Record what the user did with a suggestion (used / custom / skipped).
+        group.MapPost("/{weeklyGoalId}/suggestion-feedback", async (string weeklyGoalId,
+            SuggestionFeedbackRequest req, ClaimsPrincipal user, MongoContext db) =>
+        {
+            var userId = user.UserId();
+            if (!SuggestionActions.All.Contains(req.Action))
+                return Results.BadRequest(new { error = $"action must be one of: {string.Join(", ", SuggestionActions.All)}" });
+
+            var exists = await db.Goals.Find(g => g.Id == weeklyGoalId && g.UserId == userId).AnyAsync();
+            if (!exists) return Results.NotFound();
+
+            await db.SuggestionEvents.InsertOneAsync(new SuggestionEvent
+            {
+                Id = ObjectId.GenerateNewId().ToString(),
+                UserId = userId,
+                WeeklyGoalId = weeklyGoalId,
+                Direction = req.Direction,
+                Action = req.Action,
+                NewGoalId = req.NewGoalId,
+            });
+            return Results.NoContent();
+        });
+    }
+
+    /// <summary>Renders the goal forest as indented "- title (type)" lines for LLM context.</summary>
+    private static string RenderTree(List<Goal> goals)
+    {
+        var childrenByParent = goals
+            .Where(g => g.Status != GoalStatuses.Archived)
+            .GroupBy(g => g.ParentId)
+            .ToDictionary(g => g.Key ?? "", g => g.OrderBy(x => x.Order).ToList());
+        var sb = new System.Text.StringBuilder();
+
+        void Walk(string parentKey, int depth)
+        {
+            if (!childrenByParent.TryGetValue(parentKey, out var kids)) return;
+            foreach (var g in kids)
+            {
+                sb.Append(new string(' ', depth * 2)).Append("- ").Append(g.Title)
+                    .Append(" (").Append(g.ProgressType).Append(')').Append('\n');
+                Walk(g.Id, depth + 1);
+            }
+        }
+
+        Walk("", 0);
+        return sb.Length == 0 ? "(empty)" : sb.ToString();
     }
 
     public static DateOnly MondayOf(DateOnly date)
@@ -175,3 +315,4 @@ public static class GoalEndpoints
 
 public record WeeklyAttemptRequest(string Result, string? WeekOf);
 public record PositionRequest(double X, double Y);
+public record SuggestionFeedbackRequest(string Direction, string Action, string? NewGoalId);

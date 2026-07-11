@@ -42,6 +42,25 @@ public static class ProgressCalculator
     }
 
     /// <summary>
+    /// weekly streak: consecutive "pass" results counting back from the most recent
+    /// recorded week. A "fail" (or no attempts) yields 0. Gaps in recorded weeks are
+    /// not inspected — the streak is over the ordered sequence of recorded results.
+    /// </summary>
+    public static int WeeklyStreak(IEnumerable<WeeklyAttempt>? attempts)
+    {
+        var ordered = attempts?.OrderByDescending(a => a.WeekOf);
+        if (ordered is null) return 0;
+
+        var streak = 0;
+        foreach (var a in ordered)
+        {
+            if (a.Result != "pass") break;
+            streak++;
+        }
+        return streak;
+    }
+
+    /// <summary>
     /// Consecutive-day streak ending today, or yesterday if today isn't checked yet
     /// (an unchecked today doesn't break the streak).
     /// </summary>

@@ -110,4 +110,57 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
         return JsonSerializer.Deserialize<BreakdownResult>(text, JsonOpts)
             ?? throw new LlmProviderException("Gemini returned unparseable JSON");
     }
+
+    public async Task<WeeklySuggestion> SuggestNextWeeklyAsync(string prompt, string apiKey, CancellationToken ct = default)
+    {
+        // Gemini's responseSchema is an OpenAPI-style subset (uppercase types, no additionalProperties).
+        var schema = new JsonObject
+        {
+            ["type"] = "OBJECT",
+            ["properties"] = new JsonObject
+            {
+                ["title"] = new JsonObject { ["type"] = "STRING" },
+                ["progressType"] = new JsonObject { ["type"] = "STRING", ["enum"] = new JsonArray("weekly") },
+                ["reason"] = new JsonObject { ["type"] = "STRING" },
+            },
+            ["required"] = new JsonArray("title", "progressType", "reason"),
+        };
+
+        var body = new JsonObject
+        {
+            ["contents"] = new JsonArray(new JsonObject
+            {
+                ["parts"] = new JsonArray(new JsonObject { ["text"] = prompt }),
+            }),
+            ["generationConfig"] = new JsonObject
+            {
+                ["responseMimeType"] = "application/json",
+                ["responseSchema"] = schema,
+            },
+        };
+
+        HttpResponseMessage res;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/models/{ModelId}:generateContent")
+            {
+                Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("x-goog-api-key", apiKey);
+            res = await httpFactory.CreateClient("llm").SendAsync(req, ct);
+        }
+        catch (Exception)
+        {
+            throw new LlmProviderException("Could not reach Gemini");
+        }
+
+        if (!res.IsSuccessStatusCode)
+            throw new LlmProviderException($"Gemini request failed ({(int)res.StatusCode})");
+
+        var json = JsonNode.Parse(await res.Content.ReadAsStringAsync(ct));
+        var text = json?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.GetValue<string>()
+            ?? throw new LlmProviderException("Gemini returned no content");
+        return JsonSerializer.Deserialize<WeeklySuggestion>(text, JsonOpts)
+            ?? throw new LlmProviderException("Gemini returned unparseable JSON");
+    }
 }

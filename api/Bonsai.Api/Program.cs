@@ -117,5 +117,9 @@ app.MapGoalEndpoints();
 app.MapHabitEndpoints();
 app.MapBreakdownEndpoints();
 app.MapSettingsEndpoints();
+app.MapWeeklyReviewEndpoints();
 
 app.Run();
+
+// Exposed so the test project's WebApplicationFactory<Program> can boot the real app.
+public partial class Program;

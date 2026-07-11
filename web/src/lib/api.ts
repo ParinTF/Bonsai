@@ -108,7 +108,40 @@ export interface WeeklyAttemptSummary {
 
 export interface WeekItem {
   goal: Goal
+  weeklyStreak: number
   attempts: WeeklyAttemptSummary[]
+}
+
+export interface GoalHistory {
+  goalId: string
+  points: { date: string; progress: number }[]
+}
+
+export interface WeeklyReview {
+  weekOf: string
+  weekly: { goal: Goal; recorded: boolean; result: 'pass' | 'fail' | null; streak: number }[]
+  daily: { goal: Goal; daysDone: number; streak: number }[]
+  weeklyRecorded: number
+  weeklyTotal: number
+}
+
+export type SuggestDirection = 'harder' | 'same' | 'retry' | 'easier'
+export type SuggestReasonCode = 'strong_pass' | 'strained_pass' | 'first_fail' | 'repeated_fail'
+
+export interface NextSuggestion {
+  goalId: string
+  parentId: string | null
+  weekOf: string
+  latestResult: 'pass' | 'fail'
+  direction: SuggestDirection
+  reasonCode: SuggestReasonCode
+  checkinRate: number | null
+  consecutiveFails: number
+  source: 'rule' | 'llm'
+  // Present only when source === 'llm':
+  title: string | null
+  progressType: ProgressType | null
+  reason: string | null
 }
 
 // ---- Endpoints ----
@@ -146,8 +179,14 @@ export const goalsApi = {
   remove: (id: string) => api<void>(`/goals/${id}`, { method: 'DELETE' }),
   position: (id: string, x: number, y: number) =>
     api<{ id: string; x: number; y: number }>(`/goals/${id}/position`, { method: 'PATCH', body: JSON.stringify({ x, y }) }),
-  weeklyAttempt: (id: string, result: 'pass' | 'fail') =>
-    api<{ goalId: string; weekOf: string; result: string }>(`/goals/${id}/weekly-attempt`, { method: 'POST', body: JSON.stringify({ result, weekOf: localMonday() }) }),
+  weeklyAttempt: (id: string, result: 'pass' | 'fail', weekOf?: string) =>
+    api<{ goalId: string; weekOf: string; result: string }>(`/goals/${id}/weekly-attempt`, { method: 'POST', body: JSON.stringify({ result, weekOf: weekOf ?? localMonday() }) }),
+  suggestNext: (id: string) =>
+    api<NextSuggestion>(`/goals/${id}/suggest-next`, { method: 'POST' }),
+  suggestionFeedback: (id: string, data: { direction: SuggestDirection; action: 'used' | 'custom' | 'skipped'; newGoalId?: string }) =>
+    api<void>(`/goals/${id}/suggestion-feedback`, { method: 'POST', body: JSON.stringify(data) }),
+  history: (id: string, days = 30) =>
+    api<GoalHistory>(`/goals/${id}/history?days=${days}`),
   breakdown: (title: string, context?: string, parentId?: string) =>
     api<Goal[]>('/goals/breakdown', { method: 'POST', body: JSON.stringify({ title, context, parentId }) }),
 }
@@ -169,6 +208,11 @@ export const accountApi = {
   changePassword: (currentPassword: string | null, newPassword: string) =>
     api<{ ok: boolean }>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   deleteAccount: () => api<void>('/account', { method: 'DELETE' }),
+  export: () => api<Record<string, unknown>>('/account/export'),
+}
+
+export const reviewApi = {
+  weekly: () => api<WeeklyReview>(`/me/weekly-review?monday=${localMonday()}&today=${localDate()}`),
 }
 
 export const settingsApi = {

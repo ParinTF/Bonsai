@@ -117,6 +117,7 @@ function YourGoalsSection() {
   const qc = useQueryClient()
   const { data: goals, isLoading } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list })
   const [title, setTitle] = useState('')
+  const [query, setQuery] = useState('')
   const [progressType, setProgressType] = useState<ProgressType>('rollup')
 
   const createGoal = useMutation({
@@ -129,8 +130,10 @@ function YourGoalsSection() {
     },
   })
 
+  const q = query.trim().toLowerCase()
   const roots = (goals ?? [])
     .filter(g => g.parentId === null && g.status !== 'archived')
+    .filter(g => q === '' || g.title.toLowerCase().includes(q))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
   return (
@@ -163,9 +166,17 @@ function YourGoalsSection() {
         </div>
       </form>
 
+      {(goals ?? []).filter(g => g.parentId === null && g.status !== 'archived').length > 3 && (
+        <Input
+          value={query} onChange={e => setQuery(e.target.value)}
+          placeholder={t('dash.search')}
+          className="mb-3 bg-card"
+        />
+      )}
+
       {isLoading && <p className="text-muted-foreground">{t('common.loading')}</p>}
       {!isLoading && roots.length === 0 && (
-        <p className="text-muted-foreground text-sm">{t('dash.noGoals')}</p>
+        <p className="text-muted-foreground text-sm">{q ? t('dash.noMatch') : t('dash.noGoals')}</p>
       )}
 
       <ul className="space-y-3">

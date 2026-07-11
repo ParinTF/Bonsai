@@ -59,6 +59,33 @@ public class AnthropicProvider : ILlmProvider
         return JsonSerializer.Deserialize<BreakdownResult>(text, JsonOpts)
             ?? throw new LlmProviderException("Anthropic returned unparseable JSON");
     }
+
+    public async Task<WeeklySuggestion> SuggestNextWeeklyAsync(string prompt, string apiKey, CancellationToken ct = default)
+    {
+        AnthropicClient client = new() { ApiKey = apiKey };
+        var schema = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(WeeklySuggestionSchema.Json)!;
+
+        Message response;
+        try
+        {
+            response = await client.Messages.Create(new MessageCreateParams
+            {
+                Model = Model.ClaudeHaiku4_5,
+                MaxTokens = 1000,
+                OutputConfig = new OutputConfig { Format = new JsonOutputFormat { Schema = schema } },
+                Messages = [new() { Role = Role.User, Content = prompt }],
+            });
+        }
+        catch (Exception)
+        {
+            throw new LlmProviderException("Anthropic request failed");
+        }
+
+        var text = response.Content.Select(b => b.Value).OfType<TextBlock>().FirstOrDefault()?.Text
+            ?? throw new LlmProviderException("Anthropic returned no content");
+        return JsonSerializer.Deserialize<WeeklySuggestion>(text, JsonOpts)
+            ?? throw new LlmProviderException("Anthropic returned unparseable JSON");
+    }
 }
 
 /// <summary>Shared JSON-Schema text (draft style) for the flat goal-item list.</summary>

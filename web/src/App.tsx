@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { GoalDetailPage } from './pages/GoalDetailPage'
 import { TodayPage } from './pages/TodayPage'
 import { WeekPage } from './pages/WeekPage'
+import { WeeklyReviewPage } from './pages/WeeklyReviewPage'
 import { SettingsPage } from './pages/SettingsPage'
 
 function RequireAuth() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/goals/:id" element={<GoalDetailPage />} />
           <Route path="/today" element={<TodayPage />} />
           <Route path="/week" element={<WeekPage />} />
+          <Route path="/review" element={<WeeklyReviewPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>

@@ -84,8 +84,31 @@ public static class AuthEndpoints
             await db.Checkins.DeleteManyAsync(c => c.UserId == userId);
             await db.WeeklyAttempts.DeleteManyAsync(w => w.UserId == userId);
             await db.UserSettings.DeleteManyAsync(s => s.UserId == userId);
+            await db.ProgressSnapshots.DeleteManyAsync(s => s.UserId == userId);
+            await db.SuggestionEvents.DeleteManyAsync(e => e.UserId == userId);
             await db.Users.DeleteOneAsync(u => u.Id == userId);
             return Results.NoContent();
+        }).RequireAuthorization();
+
+        // Full data export (data portability). The encrypted LLM key is never included.
+        app.MapGet("/account/export", async (System.Security.Claims.ClaimsPrincipal principal, MongoContext db) =>
+        {
+            var userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value;
+            var user = await db.Users.Find(u => u.Id == userId).FirstOrDefaultAsync();
+            if (user is null) return Results.Unauthorized();
+
+            var settings = await db.UserSettings.Find(s => s.UserId == userId).FirstOrDefaultAsync();
+
+            return Results.Ok(new
+            {
+                exportedAt = DateTime.UtcNow,
+                account = new { user.Email, user.AuthProvider, createdAt = user.CreatedAt },
+                llmProvider = settings?.Provider, // provider name only — never the key
+                goals = await db.Goals.Find(g => g.UserId == userId).SortBy(g => g.Order).ToListAsync(),
+                checkins = await db.Checkins.Find(c => c.UserId == userId).SortBy(c => c.Date).ToListAsync(),
+                weeklyAttempts = await db.WeeklyAttempts.Find(w => w.UserId == userId).SortBy(w => w.WeekOf).ToListAsync(),
+                progressHistory = await db.ProgressSnapshots.Find(s => s.UserId == userId).SortBy(s => s.Date).ToListAsync(),
+            });
         }).RequireAuthorization();
 
         // Instant shared demo account — no signup. Seeds example data on first use.
