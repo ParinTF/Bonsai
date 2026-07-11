@@ -30,36 +30,40 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 - **Consistency calendar heatmap** — each day of the current month shaded by the fraction of habits completed
 - **Weekly pass/fail commitments** — one result per goal per ISO week (upserted), progress = pass rate over the last 4 recorded weeks
 - **AI goal breakdown (bring your own key)** — one click turns a vague goal into a subtree whose depth the model chooses to fit the goal's complexity (2 levels for simple goals, up to 6 max); every branch bottoms out in a pass/fail weekly commitment backed by at least one daily habit. Works with an Anthropic, OpenAI, or Gemini key configured in Settings
+- **Weekly streaks + AI-assisted "what's next"** — after logging a pass/fail, a rule-based layer picks a direction (harder / same / retry / easier) from recent results and daily-checkin rate; if the user has an LLM key, it fleshes that out into a concrete titled suggestion with a one-line reason. Accept it, tweak the title, or dismiss it — every outcome is logged for later tuning
+- **Progress history + sparkline** — a daily snapshot of every goal's computed progress is kept, so each goal detail page can chart its trend over the last N days instead of only showing the current number
+- **In-app weekly review digest** (`/review`) — a single "how did this week go" page: which weekly commitments were recorded/passed and their streak, and how many days each daily habit was checked off, with a shareable weekOf/today window driven by the client's local dates
 - **One-click demo mode** — a shared demo account with a fully seeded goal tree (live streaks, weekly history, colored heatmap), guarded against destructive requests and reseeded hourly
 - **Auth options** — email/password, Google Sign-In (Google Identity Services ID-token flow, no client secret), or the demo account
 - **Archive & restore** — soft-delete any goal from the graph view and bring it back from the dashboard; hard delete still cascades the whole subtree
 - **Dark mode + English/Thai UI** — both toggles live in the nav bar and persist
 - **Timezone-correct tracking** — the client sends its local date, so a check-in at 11 pm in Bangkok lands on the right day
-- **Account management** — change password (Google-only accounts can set one), delete account with full data wipe
+- **Account management** — change password (Google-only accounts can set one), full JSON data export, delete account with full data wipe
 - **Per-user data isolation** on every endpoint; rate limiting on auth and AI routes; subtree delete cascades to check-ins and weekly attempts
 
 ## Architecture
 
 **Goal tree in MongoDB.** Each goal stores both `parentId` and an `ancestors` array (all ids from root to parent). `parentId` gives cheap child listing; `ancestors` makes "fetch/delete an entire subtree" a single indexed query (`ancestors: goalId`) with no recursion.
 
-**Time-series data lives in separate collections.** Check-ins (`userId + goalId + date`, unique) and weekly attempts (`userId + goalId + weekOf`, unique) are their own collections rather than arrays embedded in the goal document — unbounded growth stays out of the hot document, and the unique indexes make check-in toggles and weekly results idempotent upserts.
+**Time-series data lives in separate collections.** Check-ins (`userId + goalId + date`, unique) and weekly attempts (`userId + goalId + weekOf`, unique) are their own collections rather than arrays embedded in the goal document — unbounded growth stays out of the hot document, and the unique indexes make check-in toggles and weekly results idempotent upserts. Progress snapshots (`userId + goalId + date`, one per day) and suggestion events (what the user did with a next-goal suggestion) follow the same pattern.
 
-**Progress is computed, not stored as truth.** [`ProgressCalculator.cs`](api/Bonsai.Api/Services/ProgressCalculator.cs) is a pure static class (no I/O) with the math for all 7 types; [`ProgressService.cs`](api/Bonsai.Api/Services/ProgressService.cs) loads a user's goals and evaluates deepest-first so rollup parents always see already-computed children.
+**Progress is computed, not stored as truth.** [`ProgressCalculator.cs`](api/Bonsai.Api/Services/ProgressCalculator.cs) is a pure static class (no I/O) with the math for all 7 types plus weekly/daily streaks; [`ProgressService.cs`](api/Bonsai.Api/Services/ProgressService.cs) loads a user's goals and evaluates deepest-first so rollup parents always see already-computed children, then upserts a daily progress snapshot per goal for the trend chart.
+
+**"Suggest next" is two decoupled layers.** [`WeeklySuggestionCalculator.cs`](api/Bonsai.Api/Services/WeeklySuggestionCalculator.cs) is a pure, unit-tested rule (harder/same/retry/easier from recent pass/fail + checkin rate) that always returns an answer; an optional LLM layer behind [`BreakdownService.SuggestNextWeeklyAsync`](api/Bonsai.Api/Services/BreakdownService.cs) turns that direction into a concrete titled suggestion and degrades silently to the rule-only response on any failure or missing key.
 
 **API keys are encrypted at rest.** BYOK keys are validated with a live test request, encrypted with ASP.NET Data Protection before storage, and only their last 4 characters are ever returned to the client. Keys never appear in logs, and the Data Protection key ring itself is persisted in MongoDB so encrypted keys survive container rebuilds and multi-instance deploys.
 
 ## Testing
 
-61 xUnit tests cover the pure logic — progress math in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) and the AI flat-list → tree conversion in [`BreakdownTreeBuilderTests.cs`](api/Bonsai.Api.Tests/BreakdownTreeBuilderTests.cs):
+89 xUnit tests — pure-logic tests plus 4 `[SkippableFact]` integration tests that boot the real app against Mongo (and skip, not fail, when none is reachable):
 
-- divide-by-zero and negative-target guards on numeric goals; current value clamped to [0, 100]
-- empty/null collections for every type (no children, no stages, no attempts)
-- archived children excluded from both checklist and rollup averages
-- weekly window selected by `weekOf` date, not list order (only the 4 most recent weeks count)
-- streak edge cases: unchecked *today* doesn't break the streak, a mid-run gap does
-- breakdown trees: 2-level and 6-level builds with parents-first ordering and correct ancestor chains; rejection (typed exception, no crash) of cycles, unknown/self/duplicate parent references, multiple roots, and >6-level depth
+- progress math for all 7 types in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) — divide-by-zero and negative-target guards on numeric goals, empty/null collections for every type, archived children excluded from checklist/rollup averages
+- daily and weekly streak edge cases in [`WeeklyStreakTests.cs`](api/Bonsai.Api.Tests/WeeklyStreakTests.cs) — unchecked *today* doesn't break a daily streak, a mid-run gap does; weekly streak counts consecutive passes newest-first and stops at the first fail
+- the "suggest next weekly goal" direction rule in [`WeeklySuggestionCalculatorTests.cs`](api/Bonsai.Api.Tests/WeeklySuggestionCalculatorTests.cs) — two fails in a row → easier, a lone fail → retry, a comfortable pass → harder, a strained pass → same
+- AI flat-list → tree conversion in [`BreakdownTreeBuilderTests.cs`](api/Bonsai.Api.Tests/BreakdownTreeBuilderTests.cs) — 2-level and 6-level builds with parents-first ordering and correct ancestor chains; rejection (typed exception, no crash) of cycles, unknown/self/duplicate parent references, multiple roots, and >6-level depth
+- full-stack smoke checks in [`ApiIntegrationTests.cs`](api/Bonsai.Api.Tests/ApiIntegrationTests.cs) via `WebApplicationFactory<Program>` against a throwaway database
 
-Separating the math into a pure class keeps these tests free of MongoDB mocks. CI runs them on every push, builds the frontend, and then boots the whole Docker Compose stack to run a Playwright browser smoke test against it. The local `web/e2e-*.mjs` scripts cover more flows, including a regression test that drags a node, clicks empty canvas, and asserts zero position drift.
+Separating the math into pure classes keeps almost all of these tests free of MongoDB mocks. CI runs them on every push, builds the frontend, and then boots the whole Docker Compose stack to run a Playwright browser smoke test against it. The local `web/e2e-*.mjs` scripts cover more flows, including a regression test that drags a node, clicks empty canvas, and asserts zero position drift.
 
 ## AI integration (BYOK)
 
