@@ -8,10 +8,10 @@ using MongoDB.Driver;
 namespace Bonsai.Api.Endpoints;
 
 public record CreateGoalRequest(string Title, string? ParentId, string ProgressType,
-    List<Stage>? Stages, NumericProgress? Numeric);
+    List<Stage>? Stages, NumericProgress? Numeric, string? Description);
 
 public record UpdateGoalRequest(string? Title, string? Status, string? ProgressType,
-    List<Stage>? Stages, NumericProgress? Numeric, double? Progress, int? Order);
+    List<Stage>? Stages, NumericProgress? Numeric, double? Progress, int? Order, string? Description);
 
 public static class GoalEndpoints
 {
@@ -74,6 +74,7 @@ public static class GoalEndpoints
                 ParentId = req.ParentId,
                 Ancestors = ancestors,
                 Title = req.Title.Trim(),
+                Description = Normalize(req.Description),
                 ProgressType = req.ProgressType,
                 Stages = req.ProgressType == ProgressTypes.Stages ? req.Stages ?? [] : null,
                 Numeric = req.ProgressType == ProgressTypes.Numeric ? req.Numeric ?? new NumericProgress() : null,
@@ -97,6 +98,8 @@ public static class GoalEndpoints
 
             var update = Builders<Goal>.Update.Set(g => g.UpdatedAt, DateTime.UtcNow);
             if (req.Title is not null) update = update.Set(g => g.Title, req.Title.Trim());
+            // Description: sending "" (or whitespace) clears it; omitting it (null) leaves it untouched.
+            if (req.Description is not null) update = update.Set(g => g.Description, Normalize(req.Description));
             if (req.Status is not null) update = update.Set(g => g.Status, req.Status);
             if (req.ProgressType is not null) update = update.Set(g => g.ProgressType, req.ProgressType);
             if (req.Stages is not null) update = update.Set(g => g.Stages, req.Stages);
@@ -237,6 +240,7 @@ public static class GoalEndpoints
                 progressType = llm is null ? null
                     : (ProgressTypes.All.Contains(llm.ProgressType) ? llm.ProgressType : ProgressTypes.Weekly),
                 reason = llm?.Reason,
+                description = llm?.Description,
             });
         });
 
@@ -311,6 +315,9 @@ public static class GoalEndpoints
         var diff = ((int)date.DayOfWeek + 6) % 7; // Monday = 0
         return date.AddDays(-diff);
     }
+
+    /// <summary>Trims a free-text field, collapsing empty/whitespace input to null so we never store "".</summary>
+    private static string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
 
 public record WeeklyAttemptRequest(string Result, string? WeekOf);

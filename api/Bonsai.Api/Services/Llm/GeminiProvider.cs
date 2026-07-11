@@ -47,6 +47,7 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
                             ["tempId"] = new JsonObject { ["type"] = "STRING" },
                             ["parentTempId"] = new JsonObject { ["type"] = "STRING", ["nullable"] = true },
                             ["title"] = new JsonObject { ["type"] = "STRING" },
+                            ["description"] = new JsonObject { ["type"] = "STRING", ["nullable"] = true },
                             ["progressType"] = new JsonObject
                             {
                                 ["type"] = "STRING",
@@ -120,10 +121,11 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
             ["properties"] = new JsonObject
             {
                 ["title"] = new JsonObject { ["type"] = "STRING" },
+                ["description"] = new JsonObject { ["type"] = "STRING" },
                 ["progressType"] = new JsonObject { ["type"] = "STRING", ["enum"] = new JsonArray("weekly") },
                 ["reason"] = new JsonObject { ["type"] = "STRING" },
             },
-            ["required"] = new JsonArray("title", "progressType", "reason"),
+            ["required"] = new JsonArray("title", "description", "progressType", "reason"),
         };
 
         var body = new JsonObject

@@ -87,6 +87,7 @@ public static class BreakdownTreeBuilder
                     Title = child.WeeklyTarget is { Length: > 0 } target && child.ProgressType == ProgressTypes.Weekly
                         ? $"{child.Title} — {target}"
                         : child.Title,
+                    Description = string.IsNullOrWhiteSpace(child.Description) ? null : child.Description.Trim(),
                     ProgressType = ProgressTypes.All.Contains(child.ProgressType) ? child.ProgressType : ProgressTypes.Rollup,
                     Order = order++,
                 };

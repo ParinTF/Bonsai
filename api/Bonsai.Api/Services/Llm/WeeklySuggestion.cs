@@ -9,6 +9,10 @@ public class WeeklySuggestion
     [JsonPropertyName("title")]
     public string Title { get; set; } = null!;
 
+    /// <summary>Concrete "how to do this" for the proposed commitment — not a restatement of the title.</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
     /// <summary>Always "weekly" for now — the suggestion replaces a weekly goal.</summary>
     [JsonPropertyName("progressType")]
     public string ProgressType { get; set; } = "weekly";
@@ -27,10 +31,11 @@ public static class WeeklySuggestionSchema
       "additionalProperties": false,
       "properties": {
         "title": { "type": "string" },
+        "description": { "type": "string" },
         "progressType": { "type": "string", "enum": ["weekly"] },
         "reason": { "type": "string" }
       },
-      "required": ["title", "progressType", "reason"]
+      "required": ["title", "description", "progressType", "reason"]
     }
     """;
 }
@@ -74,6 +79,8 @@ public static class WeeklySuggestionPrompt
             Return JSON only: an object with
               - "title": the next weekly commitment, concrete enough to judge pass/fail at week's end,
                 phrased in the SAME language as the goal titles above,
+              - "description": concrete guidance on HOW to do it (method, rough amount/duration, a tip that
+                makes it stick) — add information the title does not, never just restate the title,
               - "progressType": always "weekly",
               - "reason": one or two short sentences telling the user why you suggest this, in that same language.
             """;

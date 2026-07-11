@@ -272,3 +272,20 @@ public class StreakTests
         // last checkin 2 days ago — today and yesterday both empty
         Assert.Equal(0, ProgressCalculator.Streak(Days(2, 3, 4), Today));
 }
+
+public class AggregatesChildrenTests
+{
+    // Drives the breakdown root-promotion rule: attaching an AI subtree under a
+    // goal whose type ignores children must switch that goal to rollup, or its
+    // progress stays frozen forever.
+    [Theory]
+    [InlineData(ProgressTypes.Rollup, true)]
+    [InlineData(ProgressTypes.Checklist, true)]
+    [InlineData(ProgressTypes.Stages, false)]
+    [InlineData(ProgressTypes.Numeric, false)]
+    [InlineData(ProgressTypes.Manual, false)]
+    [InlineData(ProgressTypes.Daily, false)]
+    [InlineData(ProgressTypes.Weekly, false)]
+    public void TrueOnlyForChildDerivedTypes(string type, bool expected) =>
+        Assert.Equal(expected, ProgressTypes.AggregatesChildren(type));
+}

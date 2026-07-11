@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bonsai.Api.Models;
 using Bonsai.Api.Services.Llm;
 
@@ -16,8 +17,9 @@ public class BreakdownTreeBuilderTests
         Ancestors = [],
     };
 
-    private static BreakdownItem Item(string id, string? parent, string type = "rollup", string? title = null, string? weeklyTarget = null) =>
-        new() { TempId = id, ParentTempId = parent, Title = title ?? $"Goal {id}", ProgressType = type, WeeklyTarget = weeklyTarget };
+    private static BreakdownItem Item(string id, string? parent, string type = "rollup", string? title = null,
+        string? weeklyTarget = null, string? description = null) =>
+        new() { TempId = id, ParentTempId = parent, Title = title ?? $"Goal {id}", ProgressType = type, WeeklyTarget = weeklyTarget, Description = description };
 
     // ---- happy paths ----
 
@@ -89,6 +91,54 @@ public class BreakdownTreeBuilderTests
             Root(), UserId);
 
         Assert.Equal(ProgressTypes.Rollup, goals[0].ProgressType);
+    }
+
+    // ---- description: optional, must round-trip when present and stay null when absent ----
+
+    [Fact]
+    public void Description_WhenPresent_FlowsOntoTheBuiltGoal()
+    {
+        var goals = BreakdownTreeBuilder.Build(
+            [Item("n1", null), Item("n2", "n1", "daily", "Speak 10 min", description: "Narrate your day out loud in English")],
+            Root(), UserId);
+
+        Assert.Equal("Narrate your day out loud in English", goals[0].Description);
+    }
+
+    [Fact]
+    public void Description_WhenAbsentOrBlank_IsNull_NoError()
+    {
+        var goals = BreakdownTreeBuilder.Build(
+            [Item("n1", null), Item("n2", "n1", "daily"), Item("n3", "n1", "weekly", description: "   ")],
+            Root(), UserId);
+
+        Assert.All(goals, g => Assert.Null(g.Description));
+    }
+
+    [Fact]
+    public void ParseResponse_WithAndWithoutDescription_BothDeserializeAndBuild()
+    {
+        // A response where one item carries a description and the other omits the field entirely —
+        // guards against the model returning an incomplete item set.
+        const string json = """
+        {
+          "items": [
+            { "tempId": "n1", "parentTempId": null, "title": "Learn guitar", "progressType": "rollup" },
+            { "tempId": "n2", "parentTempId": "n1", "title": "Practice daily", "progressType": "daily",
+              "description": "10 minutes of chord changes with a metronome at 60bpm" },
+            { "tempId": "n3", "parentTempId": "n1", "title": "Play one song", "progressType": "weekly" }
+          ]
+        }
+        """;
+
+        var result = JsonSerializer.Deserialize<BreakdownResult>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(result);
+
+        var goals = BreakdownTreeBuilder.Build(result!.Items, Root(), UserId);
+
+        Assert.Equal(2, goals.Count);
+        Assert.Equal("10 minutes of chord changes with a metronome at 60bpm", goals.Single(g => g.Title == "Practice daily").Description);
+        Assert.Null(goals.Single(g => g.Title == "Play one song").Description);
     }
 
     // ---- rejection paths (must throw the typed exception, never crash) ----

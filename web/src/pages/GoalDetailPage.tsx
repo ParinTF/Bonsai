@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, Check, Pencil, Plus, Sparkles, Trash2, Undo2, X } from 'lucide-react'
-import { ApiError, goalsApi, type Goal } from '../lib/api'
+import { ApiError, goalsApi, type Goal, type ProgressType } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { ProgressBar } from '../components/ProgressBar'
 import { Sparkline } from '../components/Sparkline'
@@ -208,6 +208,11 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
     onSuccess: () => { setRenaming(false); onChanged() },
   })
 
+  const changeType = useMutation({
+    mutationFn: (progressType: ProgressType) => goalsApi.update(goal.id, { progressType }),
+    onSuccess: onChanged,
+  })
+
   const archive = useMutation({
     mutationFn: () => goalsApi.update(goal.id, { status: 'archived' }),
     onSuccess: () => {
@@ -235,7 +240,17 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
           ) : (
             <>
               <span className="text-sm font-medium">{goal.title}</span>
-              <span className="ml-2 text-xs text-muted-foreground">{goal.progressType}</span>
+              <select
+                value={goal.progressType}
+                onChange={e => changeType.mutate(e.target.value as ProgressType)}
+                disabled={changeType.isPending}
+                title={t('detail.changeType')}
+                className="ml-2 text-xs border border-input bg-card text-muted-foreground rounded px-1 py-0.5 cursor-pointer hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {(['rollup', 'stages', 'numeric', 'checklist', 'manual', 'daily', 'weekly'] as ProgressType[]).map(v => (
+                  <option key={v} value={v}>{t(`type.${v}`)}</option>
+                ))}
+              </select>
             </>
           )}
         </div>
@@ -268,6 +283,7 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
         </div>
       </div>
       <ProgressBar value={goal.progress} />
+      <DescriptionEditor goal={goal} onChanged={onChanged} />
       {history && history.points.length >= 2 && (
         <div className="mt-3">
           <p className="text-xs text-muted-foreground mb-1">{t('detail.trend')}</p>
@@ -276,5 +292,57 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
       )}
       <GoalEditor goal={goal} onChanged={onChanged} />
     </div>
+  )
+}
+
+/** Inline "how to do this" note: shows the description with an edit affordance,
+ * or a "+ Add details" prompt when the goal has none. */
+function DescriptionEditor({ goal, onChanged }: { goal: Goal; onChanged: () => void }) {
+  const { t } = useI18n()
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(goal.description ?? '')
+
+  const save = useMutation({
+    // Empty string clears the description server-side (see PATCH /goals/{id}).
+    mutationFn: () => goalsApi.update(goal.id, { description: text.trim() }),
+    onSuccess: () => { setEditing(false); onChanged() },
+  })
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={e => { e.preventDefault(); save.mutate() }}
+        className="mt-3 space-y-1.5"
+      >
+        <textarea
+          value={text} onChange={e => setText(e.target.value)} autoFocus rows={3}
+          placeholder={t('editor.descOptional')}
+          className="w-full px-2 py-1.5 rounded border border-input bg-background text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <div className="flex gap-1">
+          <Button size="sm" type="submit" disabled={save.isPending}>{t('editor.descSave')}</Button>
+          <Button size="sm" variant="ghost" type="button" onClick={() => { setText(goal.description ?? ''); setEditing(false) }}>
+            {t('common.cancel')}
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
+  return goal.description ? (
+    <button
+      type="button" onClick={() => { setText(goal.description ?? ''); setEditing(true) }}
+      title={t('detail.rename')}
+      className="mt-3 block w-full text-left text-sm text-muted-foreground whitespace-pre-wrap hover:text-foreground transition-colors"
+    >
+      {goal.description}
+    </button>
+  ) : (
+    <button
+      type="button" onClick={() => setEditing(true)}
+      className="mt-2 text-xs text-primary hover:underline"
+    >
+      {t('editor.descAdd')}
+    </button>
   )
 }

@@ -107,10 +107,11 @@ function AddStageForm({ goal, onChanged }: { goal: Goal; onChanged: () => void }
 export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: () => void }) {
   const { t } = useI18n()
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [progressType, setProgressType] = useState<ProgressType>('manual')
   const qc = useQueryClient()
   const create = useMutation({
-    mutationFn: () => goalsApi.create({ title, parentId, progressType }),
+    mutationFn: () => goalsApi.create({ title, parentId, progressType, description: description.trim() || undefined }),
     onSuccess: () => {
       // A new goal can be a daily habit or weekly commitment — refresh those views too
       qc.invalidateQueries({ queryKey: ['today'] })
@@ -121,22 +122,29 @@ export function AddChildForm({ parentId, onDone }: { parentId: string; onDone: (
   return (
     <form
       onSubmit={e => { e.preventDefault(); if (title.trim()) create.mutate() }}
-      className="mt-3 flex gap-1"
+      className="mt-3 space-y-1.5"
     >
-      <input
-        value={title} onChange={e => setTitle(e.target.value)} placeholder={t('editor.subgoalTitle')} autoFocus
-        className="flex-1 px-2 py-1 rounded border border-input bg-card text-xs"
+      <div className="flex gap-1">
+        <input
+          value={title} onChange={e => setTitle(e.target.value)} placeholder={t('editor.subgoalTitle')} autoFocus
+          className="flex-1 px-2 py-1 rounded border border-input bg-card text-xs"
+        />
+        <select value={progressType} onChange={e => setProgressType(e.target.value as ProgressType)} className="text-xs border border-input bg-card rounded px-1">
+          <option value="manual">manual</option>
+          <option value="stages">stages</option>
+          <option value="numeric">numeric</option>
+          <option value="checklist">checklist</option>
+          <option value="rollup">rollup</option>
+          <option value="daily">daily</option>
+          <option value="weekly">weekly</option>
+        </select>
+        <button type="submit" className="text-xs text-primary px-2">{t('common.add')}</button>
+      </div>
+      <textarea
+        value={description} onChange={e => setDescription(e.target.value)}
+        placeholder={t('editor.descOptional')} rows={2}
+        className="w-full px-2 py-1 rounded border border-input bg-card text-xs resize-y"
       />
-      <select value={progressType} onChange={e => setProgressType(e.target.value as ProgressType)} className="text-xs border border-input bg-card rounded px-1">
-        <option value="manual">manual</option>
-        <option value="stages">stages</option>
-        <option value="numeric">numeric</option>
-        <option value="checklist">checklist</option>
-        <option value="rollup">rollup</option>
-        <option value="daily">daily</option>
-        <option value="weekly">weekly</option>
-      </select>
-      <button type="submit" className="text-xs text-primary px-2">{t('common.add')}</button>
     </form>
   )
 }

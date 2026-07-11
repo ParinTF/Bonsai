@@ -91,6 +91,7 @@ const dict = {
     'suggest.setNew': 'Set a new goal',
     'suggest.skip': 'Skip',
     'suggest.newGoalTitle': 'New goal title…',
+    'suggest.newGoalDesc': 'How to do it (optional)…',
     'suggest.create': 'Create goal',
 
     'today.title': 'Today',
@@ -112,6 +113,7 @@ const dict = {
     'detail.deleteOneConfirm': 'and its subtree — delete?',
     'detail.hint': 'Drag nodes to arrange (saved automatically) · Click a node to edit its progress',
     'detail.rename': 'Rename',
+    'detail.changeType': 'Change progress type',
     'detail.archive': 'Archive',
     'detail.archiveConfirm': 'Archive this goal? It disappears from views but can be restored from the dashboard.',
     'detail.notFound': 'Goal not found',
@@ -122,6 +124,9 @@ const dict = {
     'editor.subgoalTitle': 'Subgoal title…',
     'editor.done': 'Mark as done',
     'editor.checklistDone': 'Completed (checklist parents count children by done status)',
+    'editor.descOptional': 'Details — how to do it (optional)',
+    'editor.descAdd': '+ Add details',
+    'editor.descSave': 'Save details',
 
     'settings.title': 'Settings',
     'settings.aiTitle': 'AI provider (bring your own key)',
@@ -231,6 +236,7 @@ const dict = {
     'suggest.setNew': 'ตั้งเป้าใหม่',
     'suggest.skip': 'ข้าม',
     'suggest.newGoalTitle': 'ชื่อเป้าหมายใหม่…',
+    'suggest.newGoalDesc': 'วิธีทำ (ไม่บังคับ)…',
     'suggest.create': 'สร้างเป้าหมาย',
 
     'today.title': 'วันนี้',
@@ -252,6 +258,7 @@ const dict = {
     'detail.deleteOneConfirm': 'และเป้าย่อยทั้งหมด — ลบเลยไหม?',
     'detail.hint': 'ลาก node เพื่อจัดตำแหน่ง (บันทึกอัตโนมัติ) · คลิก node เพื่อแก้ progress',
     'detail.rename': 'เปลี่ยนชื่อ',
+    'detail.changeType': 'เปลี่ยนชนิดการวัดผล',
     'detail.archive': 'เก็บเข้าคลัง',
     'detail.archiveConfirm': 'เก็บเป้านี้เข้าคลัง? มันจะหายจากทุกหน้าแต่กู้คืนได้จาก dashboard',
     'detail.notFound': 'ไม่พบเป้าหมายนี้',
@@ -262,6 +269,9 @@ const dict = {
     'editor.subgoalTitle': 'ชื่อเป้าย่อย…',
     'editor.done': 'ทำเสร็จแล้ว',
     'editor.checklistDone': 'เสร็จแล้ว (เป้าแบบเช็คลิสต์นับจากสถานะ done ของลูก)',
+    'editor.descOptional': 'รายละเอียด — วิธีทำ (ไม่บังคับ)',
+    'editor.descAdd': '+ เพิ่มรายละเอียด',
+    'editor.descSave': 'บันทึกรายละเอียด',
 
     'settings.title': 'ตั้งค่า',
     'settings.aiTitle': 'AI provider (ใช้ key ของคุณเอง)',

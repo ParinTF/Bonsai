@@ -77,10 +77,17 @@ function TodaySection() {
               onToggle={() => checkin.mutate(goal.id)}
               label={goal.title}
             />
-            <span className={`flex-1 ${checkedToday ? 'text-muted-foreground line-through' : ''}`}>
-              {goal.title}
-            </span>
-            <span className="text-sm text-accent-deep font-semibold tabular-nums" title={t('dash.streak')}>
+            <div className="flex-1 min-w-0">
+              <span className={`block ${checkedToday ? 'text-muted-foreground line-through' : ''}`}>
+                {goal.title}
+              </span>
+              {goal.description && (
+                <span className="block text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">
+                  {goal.description}
+                </span>
+              )}
+            </div>
+            <span className="text-sm text-accent-deep font-semibold tabular-nums self-start" title={t('dash.streak')}>
               🔥 {streak}
             </span>
           </li>

@@ -19,6 +19,13 @@ public class BreakdownItem
     [JsonPropertyName("title")]
     public string Title { get; set; } = null!;
 
+    /// <summary>
+    /// Optional "how to do this" note. May be absent if the model omits it —
+    /// the tree builder never requires it.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
     [JsonPropertyName("progressType")]
     public string ProgressType { get; set; } = "rollup";
 
@@ -78,8 +85,16 @@ public static class BreakdownPrompt
           "daily" habit that supports it.
         - Intermediate grouping nodes use "rollup". Use "stages", "numeric",
           "checklist" or "manual" only where they genuinely fit better.
-        - Keep it focused: 2-4 children per node. Titles in the same language as
-          the goal. Respond with JSON only.
+        - Give EVERY node a "description". It must add information the title does
+          not — never just restate the title. For "daily" and "weekly" leaf nodes
+          the description is required and must explain concretely HOW to do it:
+          the method, a rough duration or amount, and any tip that makes it stick.
+          Example — title "Speak English 10 min/day", description "Narrate your day
+          out loud in English alone; record yourself if you can, then replay it to
+          catch where you stumbled." NOT "Practice speaking English 10 minutes
+          daily" (that only echoes the title).
+        - Keep it focused: 2-4 children per node. Titles and descriptions in the
+          same language as the goal. Respond with JSON only.
 
         Goal: {goalTitle}
         {(string.IsNullOrWhiteSpace(context) ? "" : $"Context: {context}")}

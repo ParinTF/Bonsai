@@ -32,6 +32,7 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
   const [suggestion, setSuggestion] = useState<NextSuggestion | null>(null)
   // null = new-goal form hidden; a string = the form is open with this prefill
   const [formTitle, setFormTitle] = useState<string | null>(null)
+  const [formDesc, setFormDesc] = useState('')
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['this-week'] })
@@ -60,13 +61,14 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
   }
 
   const createGoal = useMutation({
-    mutationFn: (data: { title: string; progressType: ProgressType; action: 'used' | 'custom' }) =>
-      goalsApi.create({ title: data.title, parentId: item.goal.parentId, progressType: data.progressType }),
+    mutationFn: (data: { title: string; description?: string; progressType: ProgressType; action: 'used' | 'custom' }) =>
+      goalsApi.create({ title: data.title, parentId: item.goal.parentId, progressType: data.progressType, description: data.description?.trim() || undefined }),
     onSuccess: (created, data) => {
       feedback(data.action, created.id)
       invalidate()
       setSuggestion(null)
       setFormTitle(null)
+      setFormDesc('')
     },
   })
 
@@ -146,6 +148,9 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
               <p className="text-sm font-medium">
                 {DIRECTION_ICONS[suggestion.direction]} {suggestion.title}
               </p>
+              {suggestion.description && (
+                <p className="text-xs text-foreground/80 whitespace-pre-wrap">{suggestion.description}</p>
+              )}
               <p className="text-xs text-muted-foreground">{suggestion.reason}</p>
             </>
           ) : (
@@ -165,6 +170,7 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
                     size="sm"
                     onClick={() => createGoal.mutate({
                       title: suggestion.title!,
+                      description: suggestion.description ?? undefined,
                       progressType: suggestion.progressType ?? 'weekly',
                       action: 'used',
                     })}
@@ -172,13 +178,16 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
                   >
                     {t('suggest.use')}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setFormTitle(suggestion.title!)}>
+                  <Button
+                    size="sm" variant="outline"
+                    onClick={() => { setFormDesc(suggestion.description ?? ''); setFormTitle(suggestion.title!) }}
+                  >
                     {t('suggest.custom')}
                   </Button>
                 </>
               ) : (
                 // No AI content — only an empty-form option, never a one-click create.
-                <Button size="sm" variant="outline" onClick={() => setFormTitle('')}>
+                <Button size="sm" variant="outline" onClick={() => { setFormDesc(''); setFormTitle('') }}>
                   {t('suggest.setNew')}
                 </Button>
               )}
@@ -188,10 +197,10 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
             </div>
           ) : (
             <form
-              className="flex gap-2 flex-wrap"
+              className="space-y-2"
               onSubmit={e => {
                 e.preventDefault()
-                if (formTitle.trim()) createGoal.mutate({ title: formTitle.trim(), progressType: 'weekly', action: 'custom' })
+                if (formTitle.trim()) createGoal.mutate({ title: formTitle.trim(), description: formDesc, progressType: 'weekly', action: 'custom' })
               }}
             >
               <Input
@@ -199,14 +208,23 @@ export function WeekGoalCard({ item }: { item: WeekItem }) {
                 value={formTitle}
                 onChange={e => setFormTitle(e.target.value)}
                 placeholder={t('suggest.newGoalTitle')}
-                className="h-8 text-sm flex-1 min-w-40"
+                className="h-8 text-sm w-full"
               />
-              <Button size="sm" type="submit" disabled={!formTitle.trim() || createGoal.isPending}>
-                {t('suggest.create')}
-              </Button>
-              <Button size="sm" variant="ghost" type="button" onClick={() => setFormTitle(null)}>
-                {t('common.cancel')}
-              </Button>
+              <textarea
+                value={formDesc}
+                onChange={e => setFormDesc(e.target.value)}
+                placeholder={t('suggest.newGoalDesc')}
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" type="submit" disabled={!formTitle.trim() || createGoal.isPending}>
+                  {t('suggest.create')}
+                </Button>
+                <Button size="sm" variant="ghost" type="button" onClick={() => { setFormTitle(null); setFormDesc('') }}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
             </form>
           )}
         </div>

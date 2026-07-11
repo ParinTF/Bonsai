@@ -21,6 +21,7 @@ import {
   Flame,
   GitBranch,
   Hash,
+  Info,
   ListChecks,
   SlidersHorizontal,
 } from 'lucide-react'
@@ -65,6 +66,12 @@ function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
         <span className={`text-[13px] font-medium truncate flex-1 ${done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
           {goal.title}
         </span>
+        {goal.description && (
+          // Full text kept off the card (would clutter it) — surfaced on hover instead.
+          <span title={goal.description} className="shrink-0 leading-none">
+            <Info size={12} className="text-muted-foreground" />
+          </span>
+        )}
         <span className={`text-[9px] px-1.5 py-0.5 rounded-full shrink-0 ${badge}`}>
           {goal.progressType}
         </span>

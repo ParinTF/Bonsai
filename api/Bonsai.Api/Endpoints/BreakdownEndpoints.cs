@@ -54,6 +54,18 @@ public static class BreakdownEndpoints
             if (existingRoot is not null)
             {
                 root = existingRoot;
+                // The breakdown makes this goal the parent of the new subtree. If its
+                // current type ignores children (stages/manual/numeric/daily/weekly),
+                // its progress would stay frozen no matter how the subtree advances —
+                // promote it to rollup so the children's progress actually propagates.
+                if (!ProgressTypes.AggregatesChildren(root.ProgressType))
+                {
+                    root.ProgressType = ProgressTypes.Rollup;
+                    await db.Goals.UpdateOneAsync(g => g.Id == root.Id,
+                        Builders<Goal>.Update
+                            .Set(g => g.ProgressType, ProgressTypes.Rollup)
+                            .Set(g => g.UpdatedAt, DateTime.UtcNow));
+                }
             }
             else
             {

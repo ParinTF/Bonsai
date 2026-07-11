@@ -79,6 +79,8 @@ export interface Goal {
   parentId: string | null
   ancestors: string[]
   title: string
+  /** Optional "how to do this" note. Null for goals created before this field existed. */
+  description: string | null
   status: GoalStatus
   progressType: ProgressType
   stages: Stage[] | null
@@ -142,6 +144,7 @@ export interface NextSuggestion {
   title: string | null
   progressType: ProgressType | null
   reason: string | null
+  description: string | null
 }
 
 // ---- Endpoints ----
@@ -172,9 +175,9 @@ export function isDemoToken(): boolean {
 export const goalsApi = {
   list: () => api<Goal[]>('/goals'),
   thisWeek: () => api<WeekItem[]>('/goals/this-week'),
-  create: (data: { title: string; parentId?: string | null; progressType: ProgressType; stages?: Stage[]; numeric?: NumericProgress }) =>
+  create: (data: { title: string; parentId?: string | null; progressType: ProgressType; stages?: Stage[]; numeric?: NumericProgress; description?: string }) =>
     api<Goal>('/goals', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<Pick<Goal, 'title' | 'status' | 'progressType' | 'stages' | 'numeric' | 'progress' | 'order'>>) =>
+  update: (id: string, data: Partial<Pick<Goal, 'title' | 'description' | 'status' | 'progressType' | 'stages' | 'numeric' | 'progress' | 'order'>>) =>
     api<Goal>(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   remove: (id: string) => api<void>(`/goals/${id}`, { method: 'DELETE' }),
   position: (id: string, x: number, y: number) =>

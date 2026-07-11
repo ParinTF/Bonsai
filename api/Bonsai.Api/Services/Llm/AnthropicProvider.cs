@@ -105,13 +105,14 @@ public static class BreakdownSchemas
               "tempId": { "type": "string" },
               "parentTempId": { "type": ["string", "null"] },
               "title": { "type": "string" },
+              "description": { "type": ["string", "null"] },
               "progressType": {
                 "type": "string",
                 "enum": ["rollup", "stages", "numeric", "checklist", "manual", "daily", "weekly"]
               },
               "weeklyTarget": { "type": ["string", "null"] }
             },
-            "required": ["tempId", "parentTempId", "title", "progressType", "weeklyTarget"]
+            "required": ["tempId", "parentTempId", "title", "description", "progressType", "weeklyTarget"]
           }
         }
       },

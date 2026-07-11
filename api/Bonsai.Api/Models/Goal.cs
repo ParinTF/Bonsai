@@ -14,6 +14,13 @@ public static class ProgressTypes
     public const string Weekly = "weekly";
 
     public static readonly string[] All = [Stages, Numeric, Checklist, Manual, Rollup, Daily, Weekly];
+
+    /// <summary>
+    /// True for types whose progress is derived from child goals. The others
+    /// (stages/numeric/manual/daily/weekly) ignore children entirely — a parent
+    /// of one of those types never moves when its children advance.
+    /// </summary>
+    public static bool AggregatesChildren(string type) => type is Rollup or Checklist;
 }
 
 public static class GoalStatuses
@@ -55,6 +62,14 @@ public class Goal
     public List<string> Ancestors { get; set; } = [];
 
     public string Title { get; set; } = null!;
+
+    /// <summary>
+    /// Optional free-text "how to do this" note, useful on any progressType but
+    /// especially leaf habits/commitments (daily/weekly). Null for goals created
+    /// before this field existed — always treat as optional.
+    /// </summary>
+    public string? Description { get; set; }
+
     public string Status { get; set; } = GoalStatuses.Active;
     public string ProgressType { get; set; } = ProgressTypes.Manual;
 
