@@ -93,6 +93,59 @@ public class BreakdownTreeBuilderTests
         Assert.Equal(ProgressTypes.Rollup, goals[0].ProgressType);
     }
 
+    // ---- stages / numeric payloads: materialised only on their own type ----
+
+    [Fact]
+    public void StagesItem_MaterialisesStageList()
+    {
+        var item = Item("n2", "n1", "stages", "Prepare CV");
+        item.Stages = ["Draft", "  Review  ", "", "Submit"];
+
+        var goals = BreakdownTreeBuilder.Build([Item("n1", null), item], Root(), UserId);
+
+        var stages = goals[0].Stages!;
+        Assert.Equal(["Draft", "Review", "Submit"], stages.Select(s => s.Title));
+        Assert.All(stages, s => Assert.False(s.Done));
+    }
+
+    [Fact]
+    public void StagesItem_WithNoSteps_GetsEmptyListNotNull()
+    {
+        var goals = BreakdownTreeBuilder.Build(
+            [Item("n1", null), Item("n2", "n1", "stages")],
+            Root(), UserId);
+
+        Assert.NotNull(goals[0].Stages);
+        Assert.Empty(goals[0].Stages!);
+    }
+
+    [Fact]
+    public void NumericItem_MaterialisesTargetAndUnit()
+    {
+        var item = Item("n2", "n1", "numeric", "Send applications");
+        item.NumericTarget = 50;
+        item.NumericUnit = "applications";
+
+        var goals = BreakdownTreeBuilder.Build([Item("n1", null), item], Root(), UserId);
+
+        Assert.Equal(50, goals[0].Numeric!.Target);
+        Assert.Equal("applications", goals[0].Numeric!.Unit);
+        Assert.Equal(0, goals[0].Numeric!.Current);
+    }
+
+    [Fact]
+    public void StagesAndNumericPayloads_IgnoredOnOtherTypes()
+    {
+        var item = Item("n2", "n1", "daily");
+        item.Stages = ["stray"];
+        item.NumericTarget = 9;
+
+        var goals = BreakdownTreeBuilder.Build([Item("n1", null), item], Root(), UserId);
+
+        Assert.Null(goals[0].Stages);
+        Assert.Null(goals[0].Numeric);
+    }
+
     // ---- description: optional, must round-trip when present and stay null when absent ----
 
     [Fact]

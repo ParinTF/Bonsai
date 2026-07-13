@@ -54,6 +54,14 @@ public class GeminiProvider(IHttpClientFactory httpFactory) : ILlmProvider
                                 ["enum"] = new JsonArray("rollup", "stages", "numeric", "checklist", "manual", "daily", "weekly"),
                             },
                             ["weeklyTarget"] = new JsonObject { ["type"] = "STRING", ["nullable"] = true },
+                            ["stages"] = new JsonObject
+                            {
+                                ["type"] = "ARRAY",
+                                ["nullable"] = true,
+                                ["items"] = new JsonObject { ["type"] = "STRING" },
+                            },
+                            ["numericTarget"] = new JsonObject { ["type"] = "NUMBER", ["nullable"] = true },
+                            ["numericUnit"] = new JsonObject { ["type"] = "STRING", ["nullable"] = true },
                         },
                         ["required"] = new JsonArray("tempId", "title", "progressType"),
                     },

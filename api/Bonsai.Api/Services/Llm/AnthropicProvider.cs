@@ -110,9 +110,12 @@ public static class BreakdownSchemas
                 "type": "string",
                 "enum": ["rollup", "stages", "numeric", "checklist", "manual", "daily", "weekly"]
               },
-              "weeklyTarget": { "type": ["string", "null"] }
+              "weeklyTarget": { "type": ["string", "null"] },
+              "stages": { "type": ["array", "null"], "items": { "type": "string" } },
+              "numericTarget": { "type": ["number", "null"] },
+              "numericUnit": { "type": ["string", "null"] }
             },
-            "required": ["tempId", "parentTempId", "title", "description", "progressType", "weeklyTarget"]
+            "required": ["tempId", "parentTempId", "title", "description", "progressType", "weeklyTarget", "stages", "numericTarget", "numericUnit"]
           }
         }
       },

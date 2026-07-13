@@ -78,6 +78,7 @@ public static class BreakdownTreeBuilder
             var order = 0;
             foreach (var child in children)
             {
+                var progressType = ProgressTypes.All.Contains(child.ProgressType) ? child.ProgressType : ProgressTypes.Rollup;
                 var goal = new Goal
                 {
                     Id = ObjectId.GenerateNewId().ToString(),
@@ -88,7 +89,17 @@ public static class BreakdownTreeBuilder
                         ? $"{child.Title} — {target}"
                         : child.Title,
                     Description = string.IsNullOrWhiteSpace(child.Description) ? null : child.Description.Trim(),
-                    ProgressType = ProgressTypes.All.Contains(child.ProgressType) ? child.ProgressType : ProgressTypes.Rollup,
+                    ProgressType = progressType,
+                    // Same shape the manual-create endpoint produces: stages/numeric data
+                    // only on their own type, so the model's suggested steps and targets
+                    // are actually trackable instead of leaving the goal stuck at 0%.
+                    Stages = progressType == ProgressTypes.Stages
+                        ? (child.Stages ?? []).Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Select(s => new Stage { Title = s.Trim() }).ToList()
+                        : null,
+                    Numeric = progressType == ProgressTypes.Numeric
+                        ? new NumericProgress { Target = child.NumericTarget ?? 0, Unit = child.NumericUnit ?? "" }
+                        : null,
                     Order = order++,
                 };
                 real[child.TempId] = goal;

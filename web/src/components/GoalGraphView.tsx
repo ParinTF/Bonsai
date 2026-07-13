@@ -82,6 +82,17 @@ function GoalNodeCard({ data, selected }: NodeProps<GoalFlowNode>) {
         </div>
         <span className="text-[9px] text-muted-foreground w-6 text-right">{Math.round(goal.progress)}%</span>
       </div>
+      {/* Inline data peek so numeric/stages nodes are readable without opening them */}
+      {goal.progressType === 'numeric' && goal.numeric && (
+        <div className="text-[9px] text-muted-foreground mt-1 truncate">
+          {goal.numeric.current} / {goal.numeric.target} {goal.numeric.unit}
+        </div>
+      )}
+      {goal.progressType === 'stages' && (goal.stages?.length ?? 0) > 0 && (
+        <div className="text-[9px] text-muted-foreground mt-1 truncate">
+          ☑ {goal.stages!.filter(s => s.done).length}/{goal.stages!.length}
+        </div>
+      )}
       <Handle type="source" position={Position.Bottom} className="!bg-[#B7A883]" />
     </div>
   )

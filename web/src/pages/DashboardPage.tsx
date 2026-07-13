@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArchiveRestore, PartyPopper } from 'lucide-react'
-import { goalsApi, habitsApi, type ProgressType } from '../lib/api'
+import { goalsApi, habitsApi, type Goal, type ProgressType } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { GrowthRing } from '../components/GrowthRing'
 import { AnimatedCheckbox } from '../components/AnimatedCheckbox'
 import { WeekGoalCard } from '../components/WeekGoalCard'
 import { CalendarHeatmap } from '../components/CalendarHeatmap'
+import { GoalEditor } from '../components/GoalEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,12 +17,46 @@ import {
 
 const progressTypes: ProgressType[] = ['rollup', 'stages', 'numeric', 'checklist', 'manual', 'daily', 'weekly']
 
+/** Type-specific one-line summary of what's inside a goal, so the card says
+ * "4 / 12 books" or "2/5 steps" without opening the goal. Null when there's
+ * nothing meaningful to show. */
+function goalCardMeta(goal: Goal, all: Goal[], t: ReturnType<typeof useI18n>['t']): string | null {
+  switch (goal.progressType) {
+    case 'numeric':
+      return goal.numeric ? `${goal.numeric.current} / ${goal.numeric.target} ${goal.numeric.unit}`.trim() : null
+    case 'stages': {
+      const s = goal.stages ?? []
+      if (s.length === 0) return null
+      return t('dash.meta.steps')
+        .replace('{done}', String(s.filter(x => x.done).length))
+        .replace('{total}', String(s.length))
+    }
+    case 'checklist': {
+      const kids = all.filter(g => g.parentId === goal.id && g.status !== 'archived')
+      if (kids.length === 0) return null
+      return t('dash.meta.items')
+        .replace('{done}', String(kids.filter(k => k.status === 'done').length))
+        .replace('{total}', String(kids.length))
+    }
+    case 'rollup': {
+      const kids = all.filter(g => g.parentId === goal.id && g.status !== 'archived')
+      return kids.length > 0 ? t('dash.meta.subgoals').replace('{n}', String(kids.length)) : null
+    }
+    case 'daily':
+      // daily progress is exactly doneDays/7*100, so this recovers the day count
+      return t('dash.meta.days7').replace('{n}', String(Math.round((goal.progress / 100) * 7)))
+    default:
+      return null
+  }
+}
+
 export function DashboardPage() {
   const { t } = useI18n()
   return (
     <div className="space-y-8">
       <TodaySection />
       <ThisWeekSection />
+      <TodoSection />
       <YourGoalsSection />
       <section>
         <h2 className="text-lg font-bold mb-3">{t('dash.consistency')}</h2>
@@ -117,6 +152,67 @@ function ThisWeekSection() {
   )
 }
 
+// ---- 2.5 To Do: actionable one-off work (stages/numeric/checklist/manual)
+// pulled from EVERY tree, so it's workable right here without opening each
+// goal's graph. Daily/weekly live in their own sections; rollup has nothing
+// to act on. ----
+
+function TodoSection() {
+  const { t } = useI18n()
+  const qc = useQueryClient()
+  const { data: goals } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list })
+  const [showAll, setShowAll] = useState(false)
+
+  const all = goals ?? []
+  const rootId = (g: Goal) => g.ancestors[0] ?? g.id
+  const tasks = all
+    .filter(g => g.status === 'active'
+      && ['stages', 'numeric', 'checklist', 'manual'].includes(g.progressType)
+      && g.progress < 100)
+    // group by tree, then keep the tree's own ordering — stable while editing
+    .sort((a, b) => rootId(a).localeCompare(rootId(b)) || a.order - b.order)
+  if (tasks.length === 0) return null
+
+  const rootTitle = (g: Goal) =>
+    g.ancestors.length > 0 ? all.find(x => x.id === g.ancestors[0])?.title ?? null : null
+
+  const visible = showAll ? tasks : tasks.slice(0, 6)
+
+  return (
+    <section>
+      <h2 className="text-lg font-bold mb-3">{t('dash.todo')}</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {visible.map(goal => (
+          <div key={goal.id} className="bg-card rounded-xl border border-border shadow-sm p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <Link to={`/goals/${rootId(goal)}`} className="text-sm font-medium hover:underline block truncate">
+                  {goal.title}
+                </Link>
+                {rootTitle(goal) && (
+                  <span className="text-xs text-muted-foreground block truncate">
+                    {t('dash.todoIn').replace('{goal}', rootTitle(goal)!)}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">{Math.round(goal.progress)}%</span>
+            </div>
+            {goal.description && (
+              <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{goal.description}</p>
+            )}
+            <GoalEditor goal={goal} onChanged={() => qc.invalidateQueries({ queryKey: ['goals'] })} />
+          </div>
+        ))}
+      </div>
+      {tasks.length > 6 && (
+        <Button variant="ghost" size="sm" className="mt-2" onClick={() => setShowAll(v => !v)}>
+          {showAll ? t('dash.todoLess') : t('dash.todoAll').replace('{n}', String(tasks.length))}
+        </Button>
+      )}
+    </section>
+  )
+}
+
 // ---- 3. Your Goals ----
 
 function YourGoalsSection() {
@@ -198,7 +294,10 @@ function YourGoalsSection() {
                   <span className={`font-heading text-lg font-semibold block truncate ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
                     {goal.title}
                   </span>
-                  <span className="text-xs text-muted-foreground">{t(`type.${goal.progressType}`)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t(`type.${goal.progressType}`)}
+                    {(() => { const m = goalCardMeta(goal, goals ?? [], t); return m ? ` · ${m}` : '' })()}
+                  </span>
                 </div>
                 <GrowthRing value={goal.progress} />
               </div>
