@@ -147,6 +147,28 @@ export interface NextSuggestion {
   description: string | null
 }
 
+/** Flat item as returned by the AI breakdown — resend verbatim to confirm a sub-breakdown. */
+export interface BreakdownItem {
+  tempId: string
+  parentTempId: string | null
+  title: string
+  description: string | null
+  progressType: ProgressType
+  weeklyTarget?: string | null
+  stages?: string[] | null
+  numericTarget?: number | null
+  numericUnit?: string | null
+}
+
+export interface SubBreakdownPreview {
+  nodeId: string
+  items: BreakdownItem[]
+  preview: Goal[]
+  /** Present when the target node's own type doesn't aggregate children and will be
+   * switched to rollup on confirm (e.g. a daily habit gaining its first children). */
+  rootTypeChange: { from: ProgressType; to: ProgressType } | null
+}
+
 // ---- Endpoints ----
 
 export const authApi = {
@@ -192,6 +214,10 @@ export const goalsApi = {
     api<GoalHistory>(`/goals/${id}/history?days=${days}`),
   breakdown: (title: string, context?: string, parentId?: string) =>
     api<Goal[]>('/goals/breakdown', { method: 'POST', body: JSON.stringify({ title, context, parentId }) }),
+  subBreakdown: (nodeId: string, instruction?: string) =>
+    api<SubBreakdownPreview>(`/goals/${nodeId}/sub-breakdown`, { method: 'POST', body: JSON.stringify({ instruction }) }),
+  subBreakdownConfirm: (nodeId: string, items: BreakdownItem[]) =>
+    api<Goal[]>(`/goals/${nodeId}/sub-breakdown/confirm`, { method: 'POST', body: JSON.stringify({ items }) }),
 }
 
 export interface MonthCheckins {

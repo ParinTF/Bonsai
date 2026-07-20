@@ -73,6 +73,55 @@ public class BreakdownTreeBuilderTests
         }
     }
 
+    // ---- sub-breakdown: target node is itself deep inside an existing tree,
+    // not a fresh top-level root — new children must extend its real ancestor
+    // chain, not start over from an empty one. ----
+
+    [Fact]
+    public void TargetNodeWithExistingAncestors_NewChildrenExtendTheChain()
+    {
+        var deepNode = new Goal
+        {
+            Id = "507f1f77bcf86cd799439077",
+            UserId = UserId,
+            Title = "Existing deep node",
+            ProgressType = ProgressTypes.Rollup,
+            // Simulates a node that's already several levels down an existing tree.
+            Ancestors = ["aaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbb"],
+        };
+        var items = new[] { Item("n1", null), Item("n2", "n1", "daily"), Item("n3", "n1", "weekly") };
+
+        var goals = BreakdownTreeBuilder.Build(items, deepNode, UserId);
+
+        Assert.Equal(2, goals.Count);
+        Assert.All(goals, g => Assert.Equal(deepNode.Id, g.ParentId));
+        Assert.All(goals, g => Assert.Equal(
+            ["aaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbb", deepNode.Id],
+            g.Ancestors));
+    }
+
+    [Fact]
+    public void TargetNodeWithExistingAncestors_SixLevelBudgetCountsFromTheNodeItself()
+    {
+        // MaxDepth is 6 counting the target node as level 1, regardless of how deep
+        // that node already sits in the real tree — the same rule a top-level
+        // breakdown gets, just re-anchored at the sub-breakdown's target.
+        var deepNode = new Goal
+        {
+            Id = "507f1f77bcf86cd799439077",
+            UserId = UserId,
+            Title = "Existing deep node",
+            ProgressType = ProgressTypes.Rollup,
+            Ancestors = ["aaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccccccc"],
+        };
+        var items = new List<BreakdownItem> { Item("n1", null) };
+        for (var i = 2; i <= 7; i++) items.Add(Item($"n{i}", $"n{i - 1}")); // 7 levels total -> rejected
+
+        var ex = Assert.Throws<BreakdownValidationException>(() =>
+            BreakdownTreeBuilder.Build(items, deepNode, UserId));
+        Assert.Contains("depth", ex.Message);
+    }
+
     [Fact]
     public void WeeklyTarget_IsAppendedToWeeklyTitles()
     {

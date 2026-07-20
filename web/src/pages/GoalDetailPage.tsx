@@ -8,6 +8,7 @@ import { ProgressBar } from '../components/ProgressBar'
 import { Sparkline } from '../components/Sparkline'
 import { GoalGraphView } from '../components/GoalGraphView'
 import { AddChildForm, GoalEditor } from '../components/GoalEditor'
+import { SubBreakdownButton } from '../components/SubBreakdownDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -262,6 +263,7 @@ function SelectedPanel({ goal, isRoot, onChanged, onDelete, onArchived, onClose 
           >
             <Pencil size={14} />
           </Button>
+          <SubBreakdownButton goal={goal} onDone={onChanged} />
           <Button
             size="sm" variant="ghost" title={t('detail.archive')}
             onClick={() => { if (confirm(t('detail.archiveConfirm'))) archive.mutate() }}

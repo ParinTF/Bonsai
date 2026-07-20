@@ -8,6 +8,8 @@ using MongoDB.Driver;
 namespace Bonsai.Api.Endpoints;
 
 public record BreakdownRequest(string Title, string? Context, string? ParentId);
+public record SubBreakdownRequest(string? Instruction);
+public record SubBreakdownConfirmRequest(List<BreakdownItem> Items);
 
 public static class BreakdownEndpoints
 {
@@ -98,6 +100,104 @@ public static class BreakdownEndpoints
 
             var all = await progress.ComputeTreeAsync(userId);
             var subtreeIds = docs.Select(d => d.Id).Append(root.Id).ToHashSet();
+            return Results.Ok(all.Where(g => subtreeIds.Contains(g.Id)));
+        }).RequireAuthorization().RequireRateLimiting("ai");
+
+        // Sub-breakdown, step 1: ask the LLM for children of an EXISTING node without
+        // touching anything else in the tree, and return a preview — nothing is
+        // persisted yet. The client resubmits the same "items" list to /confirm.
+        app.MapPost("/goals/{nodeId}/sub-breakdown", async (string nodeId, SubBreakdownRequest req,
+            ClaimsPrincipal user, MongoContext db, BreakdownService breakdown) =>
+        {
+            var userId = user.UserId();
+            var allGoals = await db.Goals.Find(g => g.UserId == userId).ToListAsync();
+            var node = allGoals.FirstOrDefault(g => g.Id == nodeId);
+            if (node is null) return Results.NotFound();
+
+            var byId = allGoals.ToDictionary(g => g.Id);
+            var ancestorTitles = node.Ancestors
+                .Select(id => byId.TryGetValue(id, out var a) ? a.Title : null)
+                .Where(t => t is not null).Select(t => t!).ToList();
+            var existingChildren = allGoals
+                .Where(g => g.ParentId == nodeId && g.Status != GoalStatuses.Archived)
+                .Select(g => $"{g.Title} ({g.ProgressType})")
+                .ToList();
+
+            var context = SubBreakdownPrompt.BuildContext(ancestorTitles, node.Description, existingChildren, req.Instruction);
+
+            BreakdownResult result;
+            try
+            {
+                result = await breakdown.BreakDownAsync(userId, node.Title, context);
+            }
+            catch (LlmKeyMissingException)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "No LLM API key configured. Add one in Settings, or use \"Add subgoal\" to build this branch by hand.",
+                    code = "llm_key_missing",
+                });
+            }
+            catch (LlmProviderException e)
+            {
+                return Results.Json(new { error = e.Message, code = "llm_provider_error" }, statusCode: 502);
+            }
+
+            List<Goal> preview;
+            try
+            {
+                // Build against the real node so ancestors/depth are validated exactly as
+                // they will be at confirm time — but nothing here touches the database.
+                preview = BreakdownTreeBuilder.Build(result.Items, node, userId);
+            }
+            catch (BreakdownValidationException e)
+            {
+                return Results.Json(new { error = $"The model returned an invalid tree: {e.Message}", code = "llm_provider_error" }, statusCode: 502);
+            }
+
+            return Results.Ok(new
+            {
+                nodeId,
+                items = result.Items, // raw flat list — resend verbatim to /confirm
+                preview,              // materialised shape for rendering; these ids are throwaway
+                rootTypeChange = ProgressTypes.AggregatesChildren(node.ProgressType)
+                    ? null
+                    : new { from = node.ProgressType, to = ProgressTypes.Rollup },
+            });
+        }).RequireAuthorization().RequireRateLimiting("ai");
+
+        // Sub-breakdown, step 2: the user reviewed the preview and confirmed — persist
+        // the same items list for real under the same node.
+        app.MapPost("/goals/{nodeId}/sub-breakdown/confirm", async (string nodeId, SubBreakdownConfirmRequest req,
+            ClaimsPrincipal user, MongoContext db, ProgressService progress) =>
+        {
+            var userId = user.UserId();
+            var node = await db.Goals.Find(g => g.Id == nodeId && g.UserId == userId).FirstOrDefaultAsync();
+            if (node is null) return Results.NotFound();
+
+            if (!ProgressTypes.AggregatesChildren(node.ProgressType))
+            {
+                node.ProgressType = ProgressTypes.Rollup;
+                await db.Goals.UpdateOneAsync(g => g.Id == node.Id,
+                    Builders<Goal>.Update
+                        .Set(g => g.ProgressType, ProgressTypes.Rollup)
+                        .Set(g => g.UpdatedAt, DateTime.UtcNow));
+            }
+
+            List<Goal> docs;
+            try
+            {
+                docs = BreakdownTreeBuilder.Build(req.Items, node, userId);
+            }
+            catch (BreakdownValidationException e)
+            {
+                return Results.Json(new { error = $"The model returned an invalid tree: {e.Message}", code = "llm_provider_error" }, statusCode: 502);
+            }
+
+            if (docs.Count > 0) await db.Goals.InsertManyAsync(docs);
+
+            var all = await progress.ComputeTreeAsync(userId);
+            var subtreeIds = docs.Select(d => d.Id).Append(node.Id).ToHashSet();
             return Results.Ok(all.Where(g => subtreeIds.Contains(g.Id)));
         }).RequireAuthorization().RequireRateLimiting("ai");
     }

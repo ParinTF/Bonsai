@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace Bonsai.Api.Services.Llm;
@@ -124,4 +125,38 @@ public static class BreakdownPrompt
         Goal: {goalTitle}
         {(string.IsNullOrWhiteSpace(context) ? "" : $"Context: {context}")}
         """;
+}
+
+/// <summary>
+/// Builds the "context" string for a sub-breakdown — attaching new children
+/// under an EXISTING node, not recreating the tree above it. Feeds straight
+/// into <see cref="BreakdownPrompt.Build"/>'s free-text context parameter, so
+/// no changes to ILlmProvider or its schema are needed to support this.
+/// </summary>
+public static class SubBreakdownPrompt
+{
+    public static string BuildContext(IReadOnlyList<string> ancestorTitles, string? nodeDescription,
+        IReadOnlyList<string> existingChildren, string? instruction)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("You are adding children UNDER an existing node in a bigger goal tree.");
+        sb.AppendLine("Only generate the new children — do not recreate the node itself or anything above it.");
+
+        if (ancestorTitles.Count > 0)
+            sb.AppendLine("Path from the top-level goal down to this node: " + string.Join(" > ", ancestorTitles));
+
+        if (!string.IsNullOrWhiteSpace(nodeDescription))
+            sb.AppendLine("This node's own description: " + nodeDescription);
+
+        if (existingChildren.Count > 0)
+        {
+            sb.AppendLine("This node already has these children — do NOT recreate them, only add what's missing:");
+            foreach (var c in existingChildren) sb.AppendLine("- " + c);
+        }
+
+        if (!string.IsNullOrWhiteSpace(instruction))
+            sb.AppendLine("Additional instruction from the user: " + instruction);
+
+        return sb.ToString();
+    }
 }
