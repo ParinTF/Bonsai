@@ -145,6 +145,25 @@ public class ApiIntegrationTests(IntegrationFixture fx) : IClassFixture<Integrat
     }
 
     [SkippableFact]
+    public async Task Breakdown_OnGoalWithExistingChildren_Returns409AndInsertsNothing()
+    {
+        Skip.IfNot(fx.Available, SkipReason);
+        var c = await fx.AuthedClientAsync();
+
+        var root = await CreateGoalAsync(c, "Get fit this year", "rollup");
+        await CreateGoalAsync(c, "Morning run", "daily", root);
+
+        var before = await c.GetFromJsonAsync<List<JsonElement>>("/goals");
+
+        // The 409 check runs before any LLM call, so this needs no API key configured.
+        var res = await c.PostAsJsonAsync("/goals/breakdown", new { title = "Get fit this year", parentId = root });
+        Assert.Equal(System.Net.HttpStatusCode.Conflict, res.StatusCode);
+
+        var after = await c.GetFromJsonAsync<List<JsonElement>>("/goals");
+        Assert.Equal(before!.Count, after!.Count); // nothing was inserted
+    }
+
+    [SkippableFact]
     public async Task SuggestNext_FallsBackToRuleWhenNoLlmKey()
     {
         Skip.IfNot(fx.Available, SkipReason);

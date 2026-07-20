@@ -30,6 +30,18 @@ public static class BreakdownEndpoints
             {
                 existingRoot = await db.Goals.Find(g => g.Id == req.ParentId && g.UserId == userId).FirstOrDefaultAsync();
                 if (existingRoot is null) return Results.NotFound(new { error = "Parent goal not found" });
+
+                // Full-tree breakdown is for a goal that's still a blank slate — it has no
+                // idea what's already underneath and would just pile on more siblings next
+                // to whatever's there (see sub-breakdown for the "this node already has
+                // children" case, which builds its prompt around the existing subtree).
+                var hasChildren = await db.Goals.Find(g => g.UserId == userId && g.ParentId == existingRoot.Id).AnyAsync();
+                if (hasChildren)
+                {
+                    return Results.Json(
+                        new { error = "This goal already has sub-goals. Use sub-breakdown on a specific node, or add goals manually.", code = "already_has_children" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
             }
 
             // Call the LLM BEFORE creating the root goal, so a missing key or

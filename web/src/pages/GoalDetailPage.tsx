@@ -65,6 +65,9 @@ export function GoalDetailPage() {
     g => g.status !== 'archived' && (g.id === goal.id || g.ancestors.includes(goal.id)),
   )
   const selected = subtree.find(g => g.id === selectedId) ?? null
+  // Full-tree "Break down with AI" only makes sense on a still-blank goal — once it
+  // has children, use sub-breakdown on the specific node that needs more instead.
+  const hasChildren = subtree.length > 1
 
   async function breakdownWithAi() {
     if (!goal) return
@@ -78,6 +81,8 @@ export function GoalDetailPage() {
       invalidate()
     } catch (e) {
       if (e instanceof ApiError && e.code === 'llm_key_missing') setNeedsKey(true)
+      // Stale client state (e.g. another tab added a child first) — the server
+      // is the source of truth here, so just surface its message, never crash.
       else setAiError(e instanceof Error ? e.message : 'AI breakdown failed')
     } finally {
       setAiBusy(false)
@@ -93,7 +98,11 @@ export function GoalDetailPage() {
           <Button size="sm" onClick={() => setAddingChild(v => !v)}>
             <Plus size={15} /> {t('detail.addSubgoal')}
           </Button>
-          <Button size="sm" variant="accent" onClick={() => setAiOpen(v => !v)} disabled={aiBusy}>
+          <Button
+            size="sm" variant="accent" onClick={() => setAiOpen(v => !v)}
+            disabled={aiBusy || hasChildren}
+            title={hasChildren ? t('detail.aiHasChildren') : undefined}
+          >
             <Sparkles size={15} /> {aiBusy ? t('detail.aiBusy') : t('detail.ai')}
           </Button>
           <Button
@@ -105,6 +114,10 @@ export function GoalDetailPage() {
           </Button>
         </div>
       </div>
+
+      {hasChildren && (
+        <p className="text-xs text-muted-foreground">{t('detail.aiHasChildren')}</p>
+      )}
 
       {archivedInfo && (
         <div className="bg-muted border border-border rounded-xl px-4 py-3 flex items-center gap-3">
