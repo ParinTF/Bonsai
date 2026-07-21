@@ -30,7 +30,11 @@ public static class GoalEndpoints
         {
             var userId = user.UserId();
             var all = await progress.ComputeTreeAsync(userId);
-            var weekly = all.Where(g => g.ProgressType == ProgressTypes.Weekly && g.Status == GoalStatuses.Active).ToList();
+            var statusById = all.ToDictionary(g => g.Id, g => g.Status);
+            // Once a bigger goal above it has been marked a success, its weekly
+            // commitments stop needing a pass/fail every week.
+            var weekly = all.Where(g => g.ProgressType == ProgressTypes.Weekly && g.Status == GoalStatuses.Active
+                && !ProgressCalculator.HasDoneAncestor(g.Ancestors, statusById)).ToList();
 
             var ids = weekly.Select(g => g.Id).ToList();
             var attempts = await db.WeeklyAttempts

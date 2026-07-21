@@ -24,6 +24,15 @@ public static class HabitEndpoints
                 .SortBy(g => g.Order)
                 .ToListAsync();
 
+            // Once a bigger goal above it has been marked a success, its daily
+            // habits stop needing a check-in — drop those before building the list.
+            var statusById = await db.Goals
+                .Find(g => g.UserId == userId)
+                .Project(g => new { g.Id, g.Status })
+                .ToListAsync();
+            var statusMap = statusById.ToDictionary(g => g.Id, g => g.Status);
+            habits = habits.Where(h => !ProgressCalculator.HasDoneAncestor(h.Ancestors, statusMap)).ToList();
+
             var todayCheckins = await db.Checkins
                 .Find(c => c.UserId == userId && c.Date == today && c.Done)
                 .ToListAsync();
@@ -52,8 +61,15 @@ public static class HabitEndpoints
             if (!System.Text.RegularExpressions.Regex.IsMatch(m, @"^\d{4}-\d{2}$"))
                 return Results.BadRequest(new { error = "month must be yyyy-MM" });
 
-            var habitCount = await db.Goals.CountDocumentsAsync(g =>
-                g.UserId == userId && g.ProgressType == ProgressTypes.Daily && g.Status == GoalStatuses.Active);
+            // Same "hidden once a bigger goal above it is a success" rule as /today,
+            // so the heatmap's denominator matches what's actually asked of the user.
+            var allStatuses = await db.Goals.Find(g => g.UserId == userId)
+                .Project(g => new { g.Id, g.Status }).ToListAsync();
+            var statusMap = allStatuses.ToDictionary(g => g.Id, g => g.Status);
+            var dailyHabits = await db.Goals
+                .Find(g => g.UserId == userId && g.ProgressType == ProgressTypes.Daily && g.Status == GoalStatuses.Active)
+                .Project(g => new { g.Id, g.Ancestors }).ToListAsync();
+            var habitCount = dailyHabits.Count(h => !ProgressCalculator.HasDoneAncestor(h.Ancestors, statusMap));
 
             var prefix = m + "-";
             var checkins = await db.Checkins

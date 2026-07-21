@@ -311,3 +311,50 @@ public class EffectiveTests
     public void Archived_PassesComputedValueThrough() =>
         Assert.Equal(17, ProgressCalculator.Effective(GoalStatuses.Archived, 17));
 }
+
+public class HasDoneAncestorTests
+{
+    // Drives hiding a goal from Today/This Week/dashboard To Do once a goal above
+    // it has been marked a success — no need to keep checking off its habits.
+    [Fact]
+    public void ImmediateParentDone_IsHidden()
+    {
+        var statusById = new Dictionary<string, string> { ["root"] = GoalStatuses.Done };
+        Assert.True(ProgressCalculator.HasDoneAncestor(["root"], statusById));
+    }
+
+    [Fact]
+    public void GrandparentDone_IsHidden_EvenWithActiveParentBetween()
+    {
+        var statusById = new Dictionary<string, string>
+        {
+            ["root"] = GoalStatuses.Done,
+            ["mid"] = GoalStatuses.Active,
+        };
+        Assert.True(ProgressCalculator.HasDoneAncestor(["root", "mid"], statusById));
+    }
+
+    [Fact]
+    public void AllAncestorsActive_IsNotHidden()
+    {
+        var statusById = new Dictionary<string, string>
+        {
+            ["root"] = GoalStatuses.Active,
+            ["mid"] = GoalStatuses.Active,
+        };
+        Assert.False(ProgressCalculator.HasDoneAncestor(["root", "mid"], statusById));
+    }
+
+    [Fact]
+    public void NoAncestors_IsNotHidden() =>
+        Assert.False(ProgressCalculator.HasDoneAncestor([], new Dictionary<string, string>()));
+
+    [Fact]
+    public void TheGoalsOwnStatus_IsIrrelevant_OnlyAncestorsCount()
+    {
+        // A goal's own "done" is handled elsewhere (Effective/status filters) — this
+        // helper only ever looks at ancestorIds, never the goal itself.
+        var statusById = new Dictionary<string, string> { ["root"] = GoalStatuses.Active };
+        Assert.False(ProgressCalculator.HasDoneAncestor(["root"], statusById));
+    }
+}

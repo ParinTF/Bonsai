@@ -50,6 +50,16 @@ public static class ProgressCalculator
         status == GoalStatuses.Done ? 100 : computed;
 
     /// <summary>
+    /// True if any ancestor of this goal (parent, grandparent, ...) is marked "done".
+    /// Drives hiding a goal from action surfaces (Today, This Week, dashboard To Do)
+    /// once its containing big goal has been called a success — the goal itself is
+    /// untouched (still whatever status/progress it actually has), it's just no
+    /// longer something the user needs to act on day to day.
+    /// </summary>
+    public static bool HasDoneAncestor(IEnumerable<string> ancestorIds, IReadOnlyDictionary<string, string> statusById) =>
+        ancestorIds.Any(id => statusById.TryGetValue(id, out var status) && status == GoalStatuses.Done);
+
+    /// <summary>
     /// weekly streak: consecutive "pass" results counting back from the most recent
     /// recorded week. A "fail" (or no attempts) yields 0. Gaps in recorded weeks are
     /// not inspected — the streak is over the ordered sequence of recorded results.

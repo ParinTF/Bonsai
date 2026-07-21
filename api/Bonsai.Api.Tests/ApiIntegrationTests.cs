@@ -173,6 +173,44 @@ public class ApiIntegrationTests(IntegrationFixture fx) : IClassFixture<Integrat
     }
 
     [SkippableFact]
+    public async Task MarkingRollupDone_HidesItsDailyAndWeeklyChildrenFromTodayAndThisWeek()
+    {
+        Skip.IfNot(fx.Available, SkipReason);
+        var c = await fx.AuthedClientAsync();
+
+        var root = await CreateGoalAsync(c, "Get fit this year", "rollup");
+        var daily = await CreateGoalAsync(c, "Morning run", "daily", root);
+        var weekly = await CreateGoalAsync(c, "Gym 3x a week", "weekly", root);
+
+        // Before: both show up as usual.
+        var todayBefore = await c.GetFromJsonAsync<JsonElement>("/today");
+        Assert.Contains(todayBefore.GetProperty("habits").EnumerateArray(),
+            h => h.GetProperty("goal").GetProperty("id").GetString() == daily);
+        var weekBefore = await c.GetFromJsonAsync<List<JsonElement>>("/goals/this-week");
+        Assert.Contains(weekBefore!, w => w.GetProperty("goal").GetProperty("id").GetString() == weekly);
+
+        (await c.PatchAsJsonAsync($"/goals/{root}", new { status = "done" })).EnsureSuccessStatusCode();
+
+        // After: neither the daily habit nor the weekly commitment is asked for anymore —
+        // but the goals themselves still exist untouched (still "active", not deleted).
+        var todayAfter = await c.GetFromJsonAsync<JsonElement>("/today");
+        Assert.DoesNotContain(todayAfter.GetProperty("habits").EnumerateArray(),
+            h => h.GetProperty("goal").GetProperty("id").GetString() == daily);
+        var weekAfter = await c.GetFromJsonAsync<List<JsonElement>>("/goals/this-week");
+        Assert.DoesNotContain(weekAfter!, w => w.GetProperty("goal").GetProperty("id").GetString() == weekly);
+
+        var goals = await c.GetFromJsonAsync<List<JsonElement>>("/goals");
+        var dailyAfter = goals!.Single(g => g.GetProperty("id").GetString() == daily);
+        Assert.Equal("active", dailyAfter.GetProperty("status").GetString());
+
+        // Undo: both come back.
+        (await c.PatchAsJsonAsync($"/goals/{root}", new { status = "active" })).EnsureSuccessStatusCode();
+        var todayRestored = await c.GetFromJsonAsync<JsonElement>("/today");
+        Assert.Contains(todayRestored.GetProperty("habits").EnumerateArray(),
+            h => h.GetProperty("goal").GetProperty("id").GetString() == daily);
+    }
+
+    [SkippableFact]
     public async Task Breakdown_OnGoalWithExistingChildren_Returns409AndInsertsNothing()
     {
         Skip.IfNot(fx.Available, SkipReason);

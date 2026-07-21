@@ -165,10 +165,16 @@ function TodoSection() {
 
   const all = goals ?? []
   const rootId = (g: Goal) => g.ancestors[0] ?? g.id
+  const statusById = new Map(all.map(g => [g.id, g.status]))
+  // Once a bigger goal above it has been marked a success, its own leftover
+  // one-off work stops needing attention — it's still there if you drill in,
+  // just not nagging you from the dashboard anymore.
+  const hasDoneAncestor = (g: Goal) => g.ancestors.some(id => statusById.get(id) === 'done')
   const tasks = all
     .filter(g => g.status === 'active'
       && ['stages', 'numeric', 'checklist', 'manual'].includes(g.progressType)
-      && g.progress < 100)
+      && g.progress < 100
+      && !hasDoneAncestor(g))
     // group by tree, then keep the tree's own ordering — stable while editing
     .sort((a, b) => rootId(a).localeCompare(rootId(b)) || a.order - b.order)
   if (tasks.length === 0) return null
