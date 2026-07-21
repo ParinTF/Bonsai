@@ -71,5 +71,6 @@ Endpoints/services only gather inputs and call these. New logic of this kind sho
 ## Gotchas
 
 - Demo mode: a shared demo account is reseeded hourly and guarded against destructive requests (`DemoService`) — consider it when touching auth or delete paths.
-- Node positions on the canvas use a dedicated `PATCH /goals/{id}/position` endpoint, deliberately separate from the main PATCH so drags can't race progress edits.
+- Node positions on the canvas use a dedicated `PATCH /goals/{id}/position` endpoint, deliberately separate from the main PATCH so drags can't race progress edits. `GoalGraphView.tsx`'s `<Controls>`/`<MiniMap>` only pan/zoom the camera (React Flow's viewport) — that's a completely separate concept from a node's `positionX`/`positionY`, so nothing about them should ever call `goalsApi.position()`; only `onNodeDragStop` does.
 - Weekly attempts are one-per-goal-per-week upserts keyed on `weekOf`; the weekly progress window is the 4 most recent *recorded* weeks by `weekOf`, not list order.
+- `GoalGraphView.tsx` keeps `typeColor` (plain hex, for `<MiniMap nodeColor>`) as a duplicate of the colors baked into `typeStyle`'s Tailwind arbitrary-value classes (for the node cards) — MiniMap needs a real color string, not a class name, so a new progressType or a recolor has to be updated in both places or the minimap dot silently falls out of sync with the card.
