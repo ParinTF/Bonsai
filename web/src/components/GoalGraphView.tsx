@@ -4,6 +4,7 @@ import {
   Background,
   Controls,
   Handle,
+  MiniMap,
   Position,
   ReactFlow,
   applyNodeChanges,
@@ -39,6 +40,19 @@ const typeStyle: Record<ProgressType, { border: string; badge: string; Icon: typ
   manual: { border: 'border-[#A9A296]', badge: 'bg-[#E6E2DA] text-[#55503F]', Icon: SlidersHorizontal },
   daily: { border: 'border-[#B08B5E]', badge: 'bg-[#EADBC5] text-[#6B4E28]', Icon: Flame },
   weekly: { border: 'border-[#C9A876]', badge: 'bg-[#F0E2C4] text-[#6B5326]', Icon: CalendarCheck },
+}
+
+// Same hex as each type's card border above, kept as a plain lookup (rather
+// than parsing the Tailwind arbitrary-value classes) since MiniMap's
+// nodeColor needs a real color string, not a class name.
+const typeColor: Record<ProgressType, string> = {
+  rollup: '#8B6F47',
+  stages: '#7A9B6D',
+  numeric: '#A8875A',
+  checklist: '#6D8F7E',
+  manual: '#A9A296',
+  daily: '#B08B5E',
+  weekly: '#C9A876',
 }
 
 // Selection highlight comes from React Flow's own `selected` prop, NOT from
@@ -208,7 +222,18 @@ export function GoalGraphView({ goals, selectedId, onSelect }: {
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={20} color="#DCD3BC" />
-        <Controls showInteractive={false} />
+        {/* Controls default to bottom-left, MiniMap to bottom-right — kept
+            explicit here so the two can never end up stacked on each other. */}
+        <Controls showInteractive={false} position="bottom-left" />
+        <MiniMap
+          position="bottom-right"
+          pannable zoomable
+          nodeColor={n => typeColor[(n.data as GoalNodeData).goal.progressType] ?? '#B7A883'}
+          nodeStrokeWidth={0}
+          maskColor="rgba(244, 238, 224, 0.6)"
+          style={{ width: 140, height: 100 }}
+          className="!bg-card !border !border-border !rounded-lg overflow-hidden"
+        />
       </ReactFlow>
     </div>
   )
