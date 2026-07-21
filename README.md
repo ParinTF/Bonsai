@@ -25,6 +25,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 ## Features
 
 - **7 progress-tracking types** — stages, numeric target, checklist, manual %, daily habit, weekly commitment, and rollup (parent = average of children), each with its own inline editor; a goal's type can be switched later from its panel in the graph view
+- **"Mark as success" on a rollup goal** — force a big goal's own progress to 100% regardless of what its sub-goals say, without touching them: they stay exactly as they were, tracked independently, and un-marking reverts the parent to the real computed average
 - **Draggable node-graph view** of each goal tree (React Flow) with Dagre auto-layout for new nodes; dragged positions persist through a dedicated `PATCH /goals/{id}/position` endpoint so canvas drags can't race progress edits
 - **Daily habit check-ins with streak tracking** — streak survives an unchecked *today*, breaks on a real gap
 - **Consistency calendar heatmap** — each day of the current month shaded by the fraction of habits completed
@@ -50,7 +51,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 
 **Time-series data lives in separate collections.** Check-ins (`userId + goalId + date`, unique) and weekly attempts (`userId + goalId + weekOf`, unique) are their own collections rather than arrays embedded in the goal document — unbounded growth stays out of the hot document, and the unique indexes make check-in toggles and weekly results idempotent upserts. Progress snapshots (`userId + goalId + date`, one per day) and suggestion events (what the user did with a next-goal suggestion) follow the same pattern.
 
-**Progress is computed, not stored as truth.** [`ProgressCalculator.cs`](api/Bonsai.Api/Services/ProgressCalculator.cs) is a pure static class (no I/O) with the math for all 7 types plus weekly/daily streaks; [`ProgressService.cs`](api/Bonsai.Api/Services/ProgressService.cs) loads a user's goals and evaluates deepest-first so rollup parents always see already-computed children, then upserts a daily progress snapshot per goal for the trend chart.
+**Progress is computed, not stored as truth.** [`ProgressCalculator.cs`](api/Bonsai.Api/Services/ProgressCalculator.cs) is a pure static class (no I/O) with the math for all 7 types plus weekly/daily streaks; [`ProgressService.cs`](api/Bonsai.Api/Services/ProgressService.cs) loads a user's goals and evaluates deepest-first so rollup parents always see already-computed children, then upserts a daily progress snapshot per goal for the trend chart. One override sits on top of all of it: `ProgressCalculator.Effective(status, computed)` forces a goal marked "done" to read 100% no matter what its type computed — the "Mark as success" button on a rollup goal — without ever writing to its children, so it composes correctly up the tree and reverts cleanly on undo.
 
 **"Suggest next" is two decoupled layers.** [`WeeklySuggestionCalculator.cs`](api/Bonsai.Api/Services/WeeklySuggestionCalculator.cs) is a pure, unit-tested rule (harder/same/retry/easier from recent pass/fail + checkin rate) that always returns an answer; an optional LLM layer behind [`BreakdownService.SuggestNextWeeklyAsync`](api/Bonsai.Api/Services/BreakdownService.cs) turns that direction into a concrete titled suggestion and degrades silently to the rule-only response on any failure or missing key.
 
@@ -58,14 +59,14 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 
 ## Testing
 
-113 xUnit tests — pure-logic tests plus 5 `[SkippableFact]` integration tests that boot the real app against Mongo (and skip, not fail, when none is reachable):
+119 xUnit tests — pure-logic tests plus 6 `[SkippableFact]` integration tests that boot the real app against Mongo (and skip, not fail, when none is reachable):
 
-- progress math for all 7 types in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) — divide-by-zero and negative-target guards on numeric goals, empty/null collections for every type, archived children excluded from checklist/rollup averages
+- progress math for all 7 types in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) — divide-by-zero and negative-target guards on numeric goals, empty/null collections for every type, archived children excluded from checklist/rollup averages, and the "done always reads 100%" override passing every other status through unchanged
 - daily and weekly streak edge cases in [`WeeklyStreakTests.cs`](api/Bonsai.Api.Tests/WeeklyStreakTests.cs) — unchecked *today* doesn't break a daily streak, a mid-run gap does; weekly streak counts consecutive passes newest-first and stops at the first fail
 - the "suggest next weekly goal" direction rule in [`WeeklySuggestionCalculatorTests.cs`](api/Bonsai.Api.Tests/WeeklySuggestionCalculatorTests.cs) — two fails in a row → easier, a lone fail → retry, a comfortable pass → harder, a strained pass → same
 - AI flat-list → tree conversion in [`BreakdownTreeBuilderTests.cs`](api/Bonsai.Api.Tests/BreakdownTreeBuilderTests.cs) — 2-level and 6-level builds with parents-first ordering and correct ancestor chains; a target node that's already deep in an existing tree gets its *own* ancestor chain extended, not a fresh one (the sub-breakdown case); stage/numeric payloads materialised only on their own type; responses with or without optional fields both parse; rejection (typed exception, no crash) of cycles, unknown/self/duplicate parent references, multiple roots, and >6-level depth
 - sub-breakdown prompt context in [`SubBreakdownPromptTests.cs`](api/Bonsai.Api.Tests/SubBreakdownPromptTests.cs) — ancestor path, node description, existing-children dedup warning, and user instruction are each included only when present
-- full-stack smoke checks in [`ApiIntegrationTests.cs`](api/Bonsai.Api.Tests/ApiIntegrationTests.cs) via `WebApplicationFactory<Program>` against a throwaway database — including that breaking down a goal that already has children returns 409 and inserts nothing
+- full-stack smoke checks in [`ApiIntegrationTests.cs`](api/Bonsai.Api.Tests/ApiIntegrationTests.cs) via `WebApplicationFactory<Program>` against a throwaway database — including that breaking down a goal that already has children returns 409 and inserts nothing, and that marking a rollup "done" shows 100% while its unfinished child keeps its own real progress and status
 
 Separating the math into pure classes keeps almost all of these tests free of MongoDB mocks. CI runs them on every push, builds the frontend, and then boots the whole Docker Compose stack to run a Playwright browser smoke test against it. The local `web/e2e-*.mjs` scripts cover more flows, including a regression test that drags a node, clicks empty canvas, and asserts zero position drift.
 

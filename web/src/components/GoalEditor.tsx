@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { CheckCircle } from 'lucide-react'
 import { goalsApi, type Goal, type ProgressType } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
@@ -69,9 +70,42 @@ export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => v
           {t('editor.checklistDone')}
         </label>
       )
+    case 'rollup':
+      // A rollup's own % is normally the average of its children — this is the
+      // one manual override: call the whole branch a success regardless of what
+      // its sub-goals say, without touching them. update()/onSuccess just
+      // refetches ['goals'], so the recomputed 100% (or, on undo, the real
+      // average) comes back from the server, never guessed client-side.
+      return goal.status === 'done' ? (
+        <div className="mt-3 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 text-primary px-3 py-1 text-sm font-medium">
+            <CheckCircle size={14} /> {t('editor.success')}
+          </span>
+          <button
+            type="button"
+            onClick={() => update.mutate({ status: 'active' })}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            {t('editor.undoSuccess')}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-1">
+          <button
+            type="button"
+            onClick={() => update.mutate({ status: 'done' })}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <CheckCircle size={15} /> {t('editor.markSuccess')}
+          </button>
+          {goal.progress < 100 && (
+            <p className="text-xs text-muted-foreground">{t('editor.successHint')}</p>
+          )}
+        </div>
+      )
     default:
-      // rollup/daily/weekly: progress computed elsewhere; allow marking done
-      return goal.progressType !== 'rollup' ? (
+      // daily/weekly: progress computed elsewhere; allow marking done
+      return (
         <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <input
             type="checkbox" checked={goal.status === 'done'}
@@ -80,7 +114,7 @@ export function GoalEditor({ goal, onChanged }: { goal: Goal; onChanged: () => v
           />
           {t('editor.done')}
         </label>
-      ) : null
+      )
   }
 }
 

@@ -289,3 +289,25 @@ public class AggregatesChildrenTests
     public void TrueOnlyForChildDerivedTypes(string type, bool expected) =>
         Assert.Equal(expected, ProgressTypes.AggregatesChildren(type));
 }
+
+public class EffectiveTests
+{
+    // Drives the "Success" override: a goal explicitly marked done reads 100%
+    // no matter what its type computed — a rollup with half-finished children
+    // included, since the user's manual call outranks the math.
+    [Fact]
+    public void Done_Is100_EvenWhenComputedIsLow() =>
+        Assert.Equal(100, ProgressCalculator.Effective(GoalStatuses.Done, 42));
+
+    [Fact]
+    public void Done_Is100_EvenWhenComputedIsZero() =>
+        Assert.Equal(100, ProgressCalculator.Effective(GoalStatuses.Done, 0));
+
+    [Fact]
+    public void Active_PassesComputedValueThrough() =>
+        Assert.Equal(63.5, ProgressCalculator.Effective(GoalStatuses.Active, 63.5));
+
+    [Fact]
+    public void Archived_PassesComputedValueThrough() =>
+        Assert.Equal(17, ProgressCalculator.Effective(GoalStatuses.Archived, 17));
+}

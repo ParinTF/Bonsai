@@ -42,6 +42,14 @@ public static class ProgressCalculator
     }
 
     /// <summary>
+    /// A goal the user has explicitly marked "done" always shows 100%, no matter what
+    /// its type would otherwise compute — including a rollup whose children aren't all
+    /// finished yet. Any other status passes the computed value through unchanged.
+    /// </summary>
+    public static double Effective(string status, double computed) =>
+        status == GoalStatuses.Done ? 100 : computed;
+
+    /// <summary>
     /// weekly streak: consecutive "pass" results counting back from the most recent
     /// recorded week. A "fail" (or no attempts) yields 0. Gaps in recorded weeks are
     /// not inspected — the streak is over the ordered sequence of recorded results.

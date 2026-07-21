@@ -145,6 +145,34 @@ public class ApiIntegrationTests(IntegrationFixture fx) : IClassFixture<Integrat
     }
 
     [SkippableFact]
+    public async Task MarkingRollupDone_Shows100PercentWithoutTouchingUnfinishedChildren()
+    {
+        Skip.IfNot(fx.Available, SkipReason);
+        var c = await fx.AuthedClientAsync();
+
+        var root = await CreateGoalAsync(c, "Get fit this year", "rollup");
+        var child = await CreateGoalAsync(c, "Train for a 5K", "numeric", root);
+        (await c.PatchAsJsonAsync($"/goals/{child}", new { numeric = new { target = 5, current = 1, unit = "km" } }))
+            .EnsureSuccessStatusCode(); // 20% — deliberately unfinished
+
+        var patched = await c.PatchAsJsonAsync($"/goals/{root}", new { status = "done" });
+        patched.EnsureSuccessStatusCode();
+        var patchedBody = await patched.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(100, patchedBody.GetProperty("progress").GetDouble());
+
+        // The child is untouched — still active, still at its own real 20%.
+        var goals = await c.GetFromJsonAsync<List<JsonElement>>("/goals");
+        var childAfter = goals!.Single(g => g.GetProperty("id").GetString() == child);
+        Assert.Equal("active", childAfter.GetProperty("status").GetString());
+        Assert.Equal(20, childAfter.GetProperty("progress").GetDouble());
+
+        // Un-marking done reverts the root to the real (still 20%) rollup average.
+        var reverted = await c.PatchAsJsonAsync($"/goals/{root}", new { status = "active" });
+        var revertedBody = await reverted.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(20, revertedBody.GetProperty("progress").GetDouble());
+    }
+
+    [SkippableFact]
     public async Task Breakdown_OnGoalWithExistingChildren_Returns409AndInsertsNothing()
     {
         Skip.IfNot(fx.Available, SkipReason);

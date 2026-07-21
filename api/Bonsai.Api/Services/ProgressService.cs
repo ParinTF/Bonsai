@@ -29,7 +29,7 @@ public class ProgressService(MongoContext db)
         // Deepest first so rollup parents see already-computed children.
         foreach (var goal in goals.OrderByDescending(g => g.Ancestors.Count))
         {
-            goal.Progress = goal.ProgressType switch
+            var computed = goal.ProgressType switch
             {
                 ProgressTypes.Stages => ProgressCalculator.Stages(goal.Stages),
                 ProgressTypes.Numeric => ProgressCalculator.Numeric(goal.Numeric),
@@ -39,6 +39,11 @@ public class ProgressService(MongoContext db)
                 ProgressTypes.Weekly => ProgressCalculator.Weekly(attemptsByGoal.GetValueOrDefault(goal.Id)),
                 _ => goal.Progress, // manual
             };
+            // A goal marked "done" always reads 100%, even a rollup with unfinished
+            // children — this must run AFTER the switch (using the freshly computed
+            // value as the fallback) and BEFORE parents read goal.Progress below,
+            // since Rollup() averages children by their already-written Progress.
+            goal.Progress = ProgressCalculator.Effective(goal.Status, computed);
         }
 
         // Persist computed values so list queries elsewhere stay consistent.
