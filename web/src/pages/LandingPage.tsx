@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Flame, GitBranch, Layers, Sparkles } from 'lucide-react'
 import { GithubLogo } from '@phosphor-icons/react'
 import { authApi, setToken } from '../lib/api'
@@ -59,14 +59,18 @@ export function LandingPage() {
         </p>
         {demoError && <p className="text-sm text-destructive">{demoError}</p>}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          {/* Try Demo performs an action (calls the API, then navigates only on
+              success) — a <button>. Sign Up/Log In are plain navigation, so
+              they're real <a> elements underneath (via asChild) for crawlers
+              and accessibility, not onClick-only. */}
           <Button size="lg" variant="accent" onClick={tryDemo} disabled={demoBusy} className="w-full sm:w-auto">
             <Sparkles size={16} /> {demoBusy ? t('login.working') : t('landing.tryDemo')}
           </Button>
-          <Button size="lg" onClick={() => navigate('/register')} className="w-full sm:w-auto">
-            {t('landing.signUp')}
+          <Button asChild size="lg" className="w-full sm:w-auto">
+            <Link to="/register">{t('landing.signUp')}</Link>
           </Button>
-          <Button size="lg" variant="outline" onClick={() => navigate('/login')} className="w-full sm:w-auto">
-            {t('landing.logIn')}
+          <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+            <Link to="/login">{t('landing.logIn')}</Link>
           </Button>
         </div>
       </section>
