@@ -5,6 +5,20 @@ namespace Bonsai.Api.Tests;
 public class SubBreakdownPromptTests
 {
     [Fact]
+    public void RestatesTheRootItemRequirement_SoTheModelDoesNotDropIt()
+    {
+        // Regression: an earlier wording told the model "do not recreate the node
+        // itself," which contradicted BreakdownPrompt's "exactly ONE root item"
+        // rule. Under a focused user instruction the model would drop the root
+        // wrapper entirely, and BreakdownTreeBuilder rejected the response with
+        // "Expected exactly one root item, got 0". The context must keep restating
+        // the requirement even while telling the model not to recreate the tree
+        // ABOVE the node.
+        var context = SubBreakdownPrompt.BuildContext([], null, [], null);
+        Assert.Contains("exactly ONE item with parentTempId = null", context);
+    }
+
+    [Fact]
     public void IncludesAncestorPath_WhenPresent()
     {
         var context = SubBreakdownPrompt.BuildContext(["Get fit this year", "Cardio"], null, [], null);

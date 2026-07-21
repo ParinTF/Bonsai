@@ -139,8 +139,12 @@ public static class SubBreakdownPrompt
         IReadOnlyList<string> existingChildren, string? instruction)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("You are adding children UNDER an existing node in a bigger goal tree.");
-        sb.AppendLine("Only generate the new children — do not recreate the node itself or anything above it.");
+        sb.AppendLine("You are adding children UNDER an existing node in a bigger goal tree — do not recreate anything ABOVE this node.");
+        sb.AppendLine("The output format still requires exactly ONE item with parentTempId = null, per the schema rules above. " +
+            "That item represents this EXISTING node, not a new goal — set its title to this node's own title, give it no " +
+            "children-defining content, and attach every item you're actually proposing under its tempId (directly, or " +
+            "nested further). Its title/description/progressType are discarded; only its tempId is used to wire your real " +
+            "proposals onto the existing node, so still emit it even though it's a placeholder.");
 
         if (ancestorTitles.Count > 0)
             sb.AppendLine("Path from the top-level goal down to this node: " + string.Join(" > ", ancestorTitles));
