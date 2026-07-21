@@ -16,6 +16,10 @@ const providerLabels: Record<LlmProvider, string> = {
   gemini: 'Google (Gemini)',
 }
 
+// Temporary: no paid credits for these yet — shown in the picker so users know
+// they exist, but not selectable. Remove entries here to re-enable.
+const DISABLED_PROVIDERS: LlmProvider[] = ['anthropic', 'openai']
+
 export function SettingsPage() {
   const { t } = useI18n()
   return (
@@ -32,7 +36,9 @@ function LlmSection() {
   const qc = useQueryClient()
   const { data: llm, isLoading } = useQuery({ queryKey: ['settings-llm'], queryFn: settingsApi.getLlm })
 
-  const [provider, setProvider] = useState<LlmProvider>('anthropic')
+  const [provider, setProvider] = useState<LlmProvider>(
+    (Object.keys(providerLabels) as LlmProvider[]).find(p => !DISABLED_PROVIDERS.includes(p)) ?? 'gemini',
+  )
   // The key lives only in this transient form state and is cleared after
   // saving — it is never written to localStorage or any long-lived store.
   const [apiKey, setApiKey] = useState('')
@@ -94,8 +100,10 @@ function LlmSection() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(providerLabels).map(([v, label]) => (
-                <SelectItem key={v} value={v}>{label}</SelectItem>
+              {(Object.entries(providerLabels) as [LlmProvider, string][]).map(([v, label]) => (
+                <SelectItem key={v} value={v} disabled={DISABLED_PROVIDERS.includes(v)}>
+                  {label}{DISABLED_PROVIDERS.includes(v) ? ` (${t('settings.providerDisabled')})` : ''}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
