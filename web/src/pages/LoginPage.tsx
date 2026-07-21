@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { authApi, setToken } from '../lib/api'
 import { googleClientId } from '../main'
@@ -7,9 +7,9 @@ import { useI18n } from '../lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-export function LoginPage() {
+export function LoginPage({ defaultMode = 'login' }: { defaultMode?: 'login' | 'register' }) {
   const { t } = useI18n()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register'>(defaultMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -22,7 +22,7 @@ export function LoginPage() {
     try {
       const res = await authApi.google(idToken)
       setToken(res.token)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login.error'))
     } finally {
@@ -39,7 +39,7 @@ export function LoginPage() {
         ? await authApi.login(email, password)
         : await authApi.register(email, password)
       setToken(res.token)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login.error'))
     } finally {
@@ -51,7 +51,9 @@ export function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <form onSubmit={submit} className="bg-card rounded-2xl shadow-lg shadow-primary/5 border border-border p-6 sm:p-8 w-full max-w-sm space-y-4">
         <h1 className="flex justify-center">
-          <img src="/Bonsai.svg" alt="Bonsai" className="h-12 w-auto" />
+          <Link to="/">
+            <img src="/Bonsai.svg" alt="Bonsai" className="h-12 w-auto" />
+          </Link>
         </h1>
         <p className="text-sm text-muted-foreground text-center">
           {mode === 'login' ? t('login.tagline') : t('login.taglineRegister')}
@@ -76,7 +78,7 @@ export function LoginPage() {
             try {
               const res = await authApi.demo()
               setToken(res.token)
-              navigate('/')
+              navigate('/dashboard')
             } catch (err) {
               setError(err instanceof Error ? err.message : t('login.error'))
             } finally {

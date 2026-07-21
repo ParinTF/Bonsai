@@ -13,7 +13,7 @@ await page.click('text=No account? Sign up')
 await page.fill('input[type=email]', 'ui' + Date.now() + '@bonsai.dev')
 await page.fill('input[type=password]', 'password123')
 await page.click('button[type=submit]')
-await page.waitForURL(WEB + '/')
+await page.waitForURL(WEB + '/dashboard')
 await page.waitForTimeout(500)
 
 // 2. Create root goal (rollup)

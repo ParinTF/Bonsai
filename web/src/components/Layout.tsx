@@ -40,7 +40,7 @@ export function Layout() {
       <header className="bg-card/80 backdrop-blur border-b border-border sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-1 sm:gap-2">
           <img src="/Bonsai.svg" alt="Bonsai" className="h-7 sm:h-8 w-auto mr-2 sm:mr-4 dark:brightness-150" />
-          <NavLink to="/" end className={linkClass}>{t('nav.goals')}</NavLink>
+          <NavLink to="/dashboard" end className={linkClass}>{t('nav.goals')}</NavLink>
           <NavLink to="/today" className={linkClass}>{t('nav.today')}</NavLink>
           <NavLink to="/week" className={linkClass}>{t('nav.week')}</NavLink>
           <NavLink to="/review" className={linkClass}>{t('nav.review')}</NavLink>

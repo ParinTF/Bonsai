@@ -53,10 +53,12 @@ async function shoot(viewport, prefix) {
   await page.fill('input[type=email]', email)
   await page.fill('input[type=password]', 'password123')
   await page.click('button[type=submit]')
-  await page.waitForURL(WEB + '/')
+  await page.waitForURL(WEB + '/dashboard')
   await page.waitForTimeout(1200)
   await page.screenshot({ path: `${shots}${prefix}-dashboard.png`, fullPage: true })
-  await page.click('text=Get fit this year')
+  // Go straight to the goal's URL — a text= click is ambiguous now that the
+  // dashboard's To Do section also mentions root goal titles in breadcrumbs.
+  await page.goto(WEB + '/goals/' + root.id)
   await page.waitForSelector('.react-flow__node')
   await page.waitForTimeout(1400)
   await page.screenshot({ path: `${shots}${prefix}-graph.png` })

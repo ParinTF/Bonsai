@@ -50,7 +50,7 @@ export function GoalDetailPage() {
     mutationFn: (goalId: string) => goalsApi.remove(goalId),
     onSuccess: (_, goalId) => {
       invalidate()
-      if (goalId === id) navigate('/')
+      if (goalId === id) navigate('/dashboard')
       else setSelectedId(null)
     },
   })
@@ -92,7 +92,7 @@ export function GoalDetailPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{t('detail.back')}</Link>
+        <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">{t('detail.back')}</Link>
         <h1 className="text-xl font-bold flex-1 min-w-40 truncate">{goal.title}</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" onClick={() => setAddingChild(v => !v)}>

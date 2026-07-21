@@ -31,8 +31,10 @@ await page.goto(WEB + '/login')
 await page.fill('input[type=email]', email)
 await page.fill('input[type=password]', 'password123')
 await page.click('button[type=submit]')
-await page.waitForURL(WEB + '/')
-await page.click('text=ฟิตร่างกาย')
+await page.waitForURL(WEB + '/dashboard')
+// Go straight to the goal's URL — a text= click is ambiguous now that the
+// dashboard's To Do section also mentions root goal titles in breadcrumbs.
+await page.goto(WEB + '/goals/' + root.id)
 await page.waitForSelector('.react-flow__node')
 await page.waitForTimeout(1200)
 await page.screenshot({ path: shots + 'g1-graph.png' })

@@ -35,7 +35,7 @@ await page.goto(WEB + '/login')
 await page.fill('input[type=email]', email)
 await page.fill('input[type=password]', 'password123')
 await page.click('button[type=submit]')
-await page.waitForURL(WEB + '/')
+await page.waitForURL(WEB + '/dashboard')
 await page.waitForTimeout(1000)
 await page.screenshot({ path: shots + 'dash1-initial.png' })
 

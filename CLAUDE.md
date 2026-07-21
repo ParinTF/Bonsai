@@ -70,6 +70,7 @@ Endpoints/services only gather inputs and call these. New logic of this kind sho
 
 ## Gotchas
 
+- **Routing: `/` is the public `LandingPage`, not the dashboard.** `App.tsx`'s `RootRoute` renders `LandingPage` when logged out or redirects to `/dashboard` when a token exists; `LoginPage` (and `/register`, the same component with `defaultMode="register"`) navigate to `/dashboard` on success, not `/`. Any new code that used to assume "/" means "authenticated home" — links, `navigate('/')`, e2e scripts' `waitForURL(WEB + '/')` — needs `/dashboard` instead. This bit the existing Playwright scripts once already (`e2e-*.mjs` all had to be updated when this route split happened).
 - Demo mode: a shared demo account is reseeded hourly and guarded against destructive requests (`DemoService`) — consider it when touching auth or delete paths.
 - Node positions on the canvas use a dedicated `PATCH /goals/{id}/position` endpoint, deliberately separate from the main PATCH so drags can't race progress edits. `GoalGraphView.tsx`'s `<Controls>`/`<MiniMap>` only pan/zoom the camera (React Flow's viewport) — that's a completely separate concept from a node's `positionX`/`positionY`, so nothing about them should ever call `goalsApi.position()`; only `onNodeDragStop` does.
 - Weekly attempts are one-per-goal-per-week upserts keyed on `weekOf`; the weekly progress window is the 4 most recent *recorded* weeks by `weekOf`, not list order.
