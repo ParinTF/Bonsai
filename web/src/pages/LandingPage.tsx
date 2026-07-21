@@ -106,9 +106,9 @@ export function LandingPage() {
   )
 }
 
-/** Shows the real app screenshot once it exists at this path; until then,
- * a friendly placeholder so the page never looks broken. Drop the file in
- * at web/public/landing/dashboard-preview.png — no code change needed. */
+/** Shows web/public/landing/dashboard-preview.png (currently the graph-view
+ * screenshot — swap the file to change it, no code change needed) with a
+ * friendly fallback if it's ever missing, so the page never looks broken. */
 function PreviewImage() {
   const { t } = useI18n()
   const [broken, setBroken] = useState(false)

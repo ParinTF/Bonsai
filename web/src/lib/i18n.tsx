@@ -38,7 +38,7 @@ const dict = {
     'landing.feature.ai.desc': 'One click turns a vague goal into a full tree. Bring your own Anthropic, OpenAI, or Gemini key — nothing is sent anywhere else.',
     'landing.feature.streaks.title': 'Streaks & consistency',
     'landing.feature.streaks.desc': 'Daily check-ins build a streak and light up a consistency calendar, so momentum is visible at a glance.',
-    'landing.previewAlt': 'Bonsai dashboard showing goals, habits, and progress',
+    'landing.previewAlt': 'Bonsai goal tree with drag-to-arrange nodes and auto-rolled-up progress bars',
     'landing.previewPlaceholder': 'Screenshot preview coming soon',
     'landing.footerGithub': 'View on GitHub',
 
@@ -228,7 +228,7 @@ const dict = {
     'landing.feature.ai.desc': 'คลิกเดียวเปลี่ยนเป้าคลุมเครือให้เป็น tree เต็มรูปแบบ ใช้ API key ของคุณเอง (Anthropic, OpenAI หรือ Gemini) ไม่ส่งไปที่ไหนอื่น',
     'landing.feature.streaks.title': 'สตรีคและปฏิทินความสม่ำเสมอ',
     'landing.feature.streaks.desc': 'เช็คอินรายวันสร้างสตรีค พร้อมปฏิทินที่ติดสีตามความสม่ำเสมอ เห็นโมเมนตัมได้ในพริบตา',
-    'landing.previewAlt': 'หน้าจอ dashboard ของ Bonsai แสดงเป้าหมาย habit และความคืบหน้า',
+    'landing.previewAlt': 'ต้นไม้เป้าหมายของ Bonsai ลาก node จัดเองได้ พร้อม progress ที่รวมยอดขึ้นอัตโนมัติ',
     'landing.previewPlaceholder': 'ภาพตัวอย่างกำลังจะมาเร็วๆ นี้',
     'landing.footerGithub': 'ดูซอร์สโค้ดบน GitHub',
 
