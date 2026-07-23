@@ -108,11 +108,20 @@ git push -u origin master
    echo "/* /index.html 200" > web/public/_redirects
    git add web/public/_redirects && git commit -m "Add SPA redirects for Cloudflare Pages" && git push
    ```
+   (ไฟล์จริงอย่าง `robots.txt`, `sitemap.xml`, `og-image.png` ที่มีอยู่แล้วใน `web/public/` ไม่โดน fallback นี้บัง — Cloudflare Pages เสิร์ฟ static asset ที่มีไฟล์จริงก่อนเช็ค `_redirects` เสมอ)
 5. **Save and Deploy** → ได้ URL เช่น `https://bonsai.pages.dev`
 6. **กลับไป Render** → แก้ `Cors__AllowedOrigins` เป็น URL นี้ (เป๊ะๆ รวม https:// ไม่มี / ท้าย) → Render จะ redeploy เอง
+7. **อัปเดต SEO placeholder ให้เป็นโดเมนจริง** — ตอนเขียนแอปยังไม่รู้ `<WEB_URL>` เลยใส่ `https://bonsai.pages.dev/` ไว้ชั่วคราวใน 3 ที่:
+   - `web/index.html` — `<link rel="canonical">`, `og:url`, `og:image`, `twitter:image`
+   - `web/public/robots.txt` — บรรทัด `Sitemap:`
+   - `web/public/sitemap.xml` — ทุก `<loc>`
 
-ทดสอบ: เปิด `<WEB_URL>` → กด **Try Demo** → ต้องเห็น dashboard พร้อมข้อมูล
-(ครั้งแรกอาจรอ ~1 นาที เพราะ Render กำลังตื่นจาก sleep)
+   แก้ให้ตรงกับ `<WEB_URL>` จริงทั้งหมดในรอบเดียว (`grep -rl bonsai.pages.dev web/index.html web/public/robots.txt web/public/sitemap.xml` หาให้ครบ) แล้ว commit + push — ไม่งั้นลิงก์ที่แชร์ไปจะมี OG image/canonical ชี้ผิดโดเมน แม้หน้าเว็บจะใช้งานได้ปกติ
+
+ทดสอบ:
+- เปิด `<WEB_URL>` → ต้องเห็น **landing page** ก่อน (ไม่ใช่เด้งไป login ตรงๆ) → กด **Try Demo** → ต้องเห็น dashboard พร้อมข้อมูล
+  (ครั้งแรกอาจรอ ~1 นาที เพราะ Render กำลังตื่นจาก sleep)
+- ลองแปะ `<WEB_URL>` ในแชท LINE/Discord หรือใช้ [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) / [Twitter Card Validator](https://cards-dev.twitter.com/validator) → ต้องขึ้นการ์ด preview พร้อมรูป ไม่ใช่ลิงก์เปล่า (ถ้าเพิ่งแก้ URL ใน SEO tags แล้วยังไม่ขึ้น ลองสั่ง "Scrape Again" ในตัว debugger — แพลตฟอร์มพวกนี้ cache ข้อมูลเก่าไว้)
 
 ---
 
@@ -128,7 +137,7 @@ git push -u origin master
 ## ขั้นที่ 5: เก็บงาน
 
 - **README**: แก้ section "Live demo" ใส่ `<WEB_URL>` จริง
-- **Custom domain** (ถ้ามี): ผูกได้ฟรีทั้ง Cloudflare Pages และ Render — อย่าลืมอัปเดต `Cors__AllowedOrigins` (comma-separated ได้ เช่น `https://bonsai.pages.dev,https://bonsai.example.com`) และ Google origins
+- **Custom domain** (ถ้ามี): ผูกได้ฟรีทั้ง Cloudflare Pages และ Render — อย่าลืมอัปเดต `Cors__AllowedOrigins` (comma-separated ได้ เช่น `https://bonsai.pages.dev,https://bonsai.example.com`), Google origins, **และ** SEO placeholder URLs ทั้ง 3 ที่จากขั้นที่ 3.7 ให้กลับไปแก้เป็นโดเมนใหม่อีกรอบถ้าย้ายมาใช้ custom domain ทีหลัง
 - **Auto-deploy**: ทั้งสองเจ้า deploy อัตโนมัติทุก push ไป master อยู่แล้ว
 - **CI**: GitHub Actions จะรัน unit tests + build + Playwright E2E ทุก push (มีอยู่แล้วใน `.github/workflows/ci.yml`)
 
@@ -146,3 +155,4 @@ git push -u origin master
 | Request แรกช้ามาก | Render free กำลังตื่นจาก sleep — เป็นเรื่องปกติของ free tier |
 | ปุ่ม AI ใช้ไม่ได้หลัง redeploy | ปกติต้องไม่เกิด (key ring อยู่ใน Mongo แล้ว) — ถ้าเกิด ให้ผู้ใช้ Remove key แล้วใส่ใหม่ในหน้า Settings |
 | Refresh ที่ /today แล้ว 404 | ไม่มีไฟล์ `web/public/_redirects` (ขั้นที่ 3 ข้อ 4) |
+| แชร์ลิงก์ใน LINE/X/Discord/Facebook แล้วขึ้นลิงก์เปล่า ไม่มีการ์ด preview | ยังไม่ได้แก้ SEO placeholder URLs เป็นโดเมนจริง (ขั้นที่ 3 ข้อ 7) หรือแพลตฟอร์มนั้น cache ข้อมูลเก่าไว้ — ลอง "Scrape Again" ใน Facebook Sharing Debugger / Twitter Card Validator |
