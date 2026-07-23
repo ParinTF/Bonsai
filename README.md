@@ -2,6 +2,8 @@
 
 A hierarchical goal tracker that breaks big goals into a draggable node graph, down to daily habits and weekly commitments — with progress that rolls up automatically.
 
+**🔗 Live: [bonsai-dww.pages.dev](https://bonsai-dww.pages.dev)** — click **Try Demo**, no signup needed (backend is on a free tier that sleeps when idle — first load can take ~30–60s)
+
 ![Bonsai goal graph](docs/screenshots/goal-graph.png)
 
 | Dashboard | Today |
@@ -20,7 +22,7 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, TanStack Query, React Flow (@xyflow/react), dark mode, EN/TH i18n, installable PWA |
 | AI | BYOK — Anthropic, OpenAI, or Gemini via a provider abstraction, all with structured outputs |
 | Testing | xUnit (backend), Playwright scripts (browser E2E) |
-| DevOps | Docker Compose (mongo + api + nginx web), GitHub Actions CI (backend tests, frontend build, and a Playwright E2E job that boots the full stack) |
+| DevOps | Docker Compose (mongo + api + nginx web) for local dev; GitHub Actions CI (backend tests, frontend build, Playwright E2E); deployed on MongoDB Atlas + Render (API) + Cloudflare Pages (frontend) — see [DEPLOY.md](DEPLOY.md) |
 
 ## Features
 
