@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO once deployed: update every <loc> to the real production URL (see DEPLOY.md). -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://bonsai.pages.dev/</loc>
+    <loc>https://bonsai-dww.pages.dev/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://bonsai.pages.dev/login</loc>
+    <loc>https://bonsai-dww.pages.dev/login</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://bonsai.pages.dev/register</loc>
+    <loc>https://bonsai-dww.pages.dev/register</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

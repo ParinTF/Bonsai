@@ -15,5 +15,4 @@ Disallow: /week
 Disallow: /review
 Disallow: /settings
 
-# TODO once deployed: update to the real production URL (see DEPLOY.md).
-Sitemap: https://bonsai.pages.dev/sitemap.xml
+Sitemap: https://bonsai-dww.pages.dev/sitemap.xml

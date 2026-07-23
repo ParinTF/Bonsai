@@ -190,4 +190,4 @@ See [DEPLOY.md](DEPLOY.md) for a step-by-step free-tier deployment guide (MongoD
 
 ## Live demo
 
-Deployment coming soon.
+**[bonsai-dww.pages.dev](https://bonsai-dww.pages.dev)** — click **Try Demo** on the landing page, no signup needed. (Free-tier backend on Render sleeps after 15 minutes idle — the first request after a while can take ~30–60s to wake up.)
