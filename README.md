@@ -63,18 +63,76 @@ Most goal apps store goals as a flat list, but real goals are trees: "get fit th
 
 ## Testing
 
-125 xUnit tests — pure-logic tests plus 7 `[SkippableFact]` integration tests that boot the real app against Mongo (and skip, not fail, when none is reachable):
+Four layers, all wired into CI: backend pure-logic unit tests, backend integration tests against a real (throwaway) database, a frontend typecheck/lint, and Playwright end-to-end scripts against the full Docker stack.
 
-- progress math for all 7 types in [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) — divide-by-zero and negative-target guards on numeric goals, empty/null collections for every type, archived children excluded from checklist/rollup averages, the "done always reads 100%" override passing every other status through unchanged, and the done-ancestor check that hides a goal from Today/This Week regardless of how many levels up the "done" sits
-- daily and weekly streak edge cases in [`WeeklyStreakTests.cs`](api/Bonsai.Api.Tests/WeeklyStreakTests.cs) — unchecked *today* doesn't break a daily streak, a mid-run gap does; weekly streak counts consecutive passes newest-first and stops at the first fail
-- the "suggest next weekly goal" direction rule in [`WeeklySuggestionCalculatorTests.cs`](api/Bonsai.Api.Tests/WeeklySuggestionCalculatorTests.cs) — two fails in a row → easier, a lone fail → retry, a comfortable pass → harder, a strained pass → same
-- AI flat-list → tree conversion in [`BreakdownTreeBuilderTests.cs`](api/Bonsai.Api.Tests/BreakdownTreeBuilderTests.cs) — 2-level and 6-level builds with parents-first ordering and correct ancestor chains; a target node that's already deep in an existing tree gets its *own* ancestor chain extended, not a fresh one (the sub-breakdown case); stage/numeric payloads materialised only on their own type; responses with or without optional fields both parse; rejection (typed exception, no crash) of cycles, unknown/self/duplicate parent references, multiple roots, and >6-level depth
-- sub-breakdown prompt context in [`SubBreakdownPromptTests.cs`](api/Bonsai.Api.Tests/SubBreakdownPromptTests.cs) — ancestor path, node description, existing-children dedup warning, and user instruction are each included only when present
-- full-stack smoke checks in [`ApiIntegrationTests.cs`](api/Bonsai.Api.Tests/ApiIntegrationTests.cs) via `WebApplicationFactory<Program>` against a throwaway database — including that breaking down a goal that already has children returns 409 and inserts nothing, that marking a rollup "done" shows 100% while its unfinished child keeps its own real progress and status, and that doing so also drops that child from `/today`/`/goals/this-week` (restored on undo) without deleting or archiving it
+```sh
+# Backend — from api/
+dotnet test Bonsai.Api.Tests                        # everything (integration tests skip without Mongo)
+dotnet test Bonsai.Api.Tests --filter "FullyQualifiedName~RollupTests"   # one class
 
-Separating the math into pure classes keeps almost all of these tests free of MongoDB mocks. CI runs them on every push, builds the frontend, and then boots the whole Docker Compose stack to run a Playwright browser smoke test against it. The local `web/e2e-*.mjs` scripts cover more flows, including a regression test that drags a node, clicks empty canvas, and asserts zero position drift.
+# Frontend — from web/
+npm run build   # tsc -b && vite build — this IS the typecheck, no separate `tsc --noEmit`
+npm run lint    # oxlint
 
-The three screenshots at the top of this README are themselves CI output: after `e2e` passes on a push to `main`/`master`, a `screenshots` job seeds a fresh account (dates computed relative to "today", never hardcoded), captures the dashboard/today/graph views with Playwright, and commits any changed PNGs straight back to the branch — so they never drift from the current UI. See [`web/e2e-readme-screenshots.mjs`](web/e2e-readme-screenshots.mjs) and the `screenshots` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+# End-to-end — needs the full stack running (docker compose up --build) — from web/
+node e2e-smoke.mjs   # the one CI actually runs; the rest are local-only dev tools
+```
+
+### Backend: pure-logic unit tests (118 tests, no I/O)
+
+These test static classes with no Mongo, no HTTP, no mocks — see "Pure logic vs. I/O" in [CLAUDE.md](CLAUDE.md) for why the codebase is shaped this way. All 118 run in milliseconds and never touch a database.
+
+| File | Classes | Tests | Covers |
+|---|---|---|---|
+| [`ProgressCalculatorTests.cs`](api/Bonsai.Api.Tests/ProgressCalculatorTests.cs) | `StagesTests`, `NumericTests`, `ChecklistTests`, `RollupTests`, `ManualTests`, `DailyTests`, `WeeklyTests`, `StreakTests`, `AggregatesChildrenTests`, `EffectiveTests`, `HasDoneAncestorTests` | 64 | Progress math for all 7 types: divide-by-zero and negative-target guards on numeric goals, empty/null collections for every type, archived children excluded from checklist/rollup averages, daily-streak edge cases (an unchecked *today* doesn't break it, a mid-run gap does), which types aggregate children (rollup/checklist only — drives auto-promotion on breakdown), the "done always reads 100%" override passing every other status through unchanged, and the done-ancestor check that hides a goal from Today/This Week no matter how many levels up the "done" sits |
+| [`WeeklyStreakTests.cs`](api/Bonsai.Api.Tests/WeeklyStreakTests.cs) | `WeeklyStreakTests` | 7 | Weekly streak counts consecutive passes newest-first by `weekOf` (not list order) and stops at the first fail |
+| [`WeeklySuggestionCalculatorTests.cs`](api/Bonsai.Api.Tests/WeeklySuggestionCalculatorTests.cs) | `WeeklySuggestionCalculatorTests` | 17 | The "suggest next weekly goal" direction rule — two fails in a row → easier, a lone fail → retry, a comfortable pass (checkin rate > 85%) → harder, a strained pass → same; recent-results ordering, empty-history guard |
+| [`BreakdownTreeBuilderTests.cs`](api/Bonsai.Api.Tests/BreakdownTreeBuilderTests.cs) | `BreakdownTreeBuilderTests` | 21 | AI flat-list → tree conversion: 2-level and 6-level builds with parents-first ordering and correct ancestor chains; a sub-breakdown target node already deep in an existing tree gets *its own* ancestor chain extended (not a fresh one), and the 6-level depth budget is counted from that node, not the real root; stage/numeric payloads materialise only on their own type (and survive a response that omits them); rejection — typed exception, never a crash — of cycles, unknown/self/duplicate parent references, multiple roots, and >6-level depth |
+| [`SubBreakdownPromptTests.cs`](api/Bonsai.Api.Tests/SubBreakdownPromptTests.cs) | `SubBreakdownPromptTests` | 8 | The sub-breakdown prompt context: ancestor path, node description, existing-children dedup warning, and user instruction are each included only when present; a regression test asserting the prompt keeps restating "still emit exactly one root item" so the model can't drop it under a narrow instruction (see [CLAUDE.md](CLAUDE.md)'s sub-breakdown section for the bug this caught) |
+| [`UnitTest1.cs`](api/Bonsai.Api.Tests/UnitTest1.cs) | `UnitTest1` | 1 | The empty scaffold `dotnet new xunit` leaves behind — asserts nothing, never deleted, harmless |
+
+### Backend: integration tests (7 tests, real MongoDB)
+
+[`ApiIntegrationTests.cs`](api/Bonsai.Api.Tests/ApiIntegrationTests.cs) boots the *actual* app via `WebApplicationFactory<Program>` — real routing, real auth, real Mongo driver — against a throwaway database (`bonsai_test_<random>`, dropped on teardown) on the server given by `BONSAI_TEST_MONGO` (default `mongodb://localhost:27017`). Each test is a `[SkippableFact]`: **skip, not fail**, when no Mongo is reachable, so the suite stays green on a machine with nothing running. To actually execute them locally:
+
+```sh
+docker run -d --rm -p 27017:27017 --name bonsai-test-mongo mongo:7
+BONSAI_TEST_MONGO=mongodb://localhost:27017 dotnet test Bonsai.Api.Tests
+docker stop bonsai-test-mongo
+```
+
+What they check: goals are isolated per user (one user's goals never leak into another's `GET /goals`); deleting a root cascades to children, check-ins, and weekly attempts everywhere, including the account data export; a weekly attempt is a true upsert (posting twice for the same `weekOf` leaves one record, last write wins); `/goals/suggest-next` falls back to the rule-only response with no LLM key configured; breaking down a goal that already has children returns `409` and inserts nothing; marking a rollup "done" shows 100% while its unfinished child keeps its own real progress and status untouched; and that "done" also drops that child from `/today` and `/goals/this-week` (restored the moment you un-mark it) without deleting or archiving anything.
+
+CI's `backend-test` job runs the whole `Bonsai.Api.Tests` project with no Mongo available, so in CI these 7 always report as **skipped**, not passed — the integration coverage is real but only exercised locally or in an environment that provisions Mongo (which is exactly what the `e2e` and `screenshots` jobs do, indirectly, by hitting the API through a real Docker Compose stack instead).
+
+### End-to-end (Playwright)
+
+All five scripts seed data through the real API (not the UI) for speed, then drive the actual browser for the parts that matter. None of them need anything beyond a running stack (`docker compose up --build`, or `dotnet run` + `npm run dev` for the two halves separately) and `WEB_URL`/`API_URL` env vars.
+
+| Script | In CI? | What it does |
+|---|---|---|
+| [`e2e-smoke.mjs`](web/e2e-smoke.mjs) | ✅ `e2e` job | The golden path through the UI itself (not the API): register → add a root goal → add a daily-habit subgoal → check it in on Today → back to the dashboard and confirm progress rolled up. No explicit assertions beyond the flow completing — a broken selector or missing element fails the script naturally |
+| [`e2e-readme-screenshots.mjs`](web/e2e-readme-screenshots.mjs) | ✅ `screenshots` job | Regenerates the three screenshots at the top of this README (see below) |
+| [`e2e-dashboard.mjs`](web/e2e-dashboard.mjs) | local only | Regression test: seeds a root + 2 daily habits + a weekly goal with 4 weeks of pass/fail history, checks both habits *without reloading the page*, and asserts the "all done" celebration banner appears and exactly 4 weekly-history dots render — catches any regression in optimistic UI updates |
+| [`e2e-graph.mjs`](web/e2e-graph.mjs) | local only | Regression test for the exact bug class node-drag persistence is prone to: drags a node, clicks empty canvas, clicks another node to select it, and asserts the dragged node's position doesn't jump by more than 2px either time; also confirms the position round-trips through `GET /goals` afterward |
+| [`e2e-design.mjs`](web/e2e-design.mjs) | local only | Not a test — no assertions. Seeds a believable goal tree (weekly history, a week of mixed checkin data for the heatmap) and screenshots dashboard/graph/today at both a desktop (1280×800) and mobile (375×720) viewport, for eyeballing visual/design changes |
+
+The three screenshots at the top of this README are themselves CI output: after `e2e` passes on a push to `main`/`master`, the `screenshots` job seeds a fresh account (dates computed relative to "today", never hardcoded), captures the dashboard/today/graph views with Playwright, and commits any changed PNGs straight back to the branch — so they never drift from the current UI. It runs only on a direct push (not a PR — a PR's `GITHUB_TOKEN` can't push back to the branch), and `paths-ignore: [docs/screenshots/**]` on the workflow trigger stops that commit from re-triggering itself.
+
+### CI pipeline
+
+Four jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml), gated in sequence:
+
+```
+backend-test ─┐
+              ├─▶ e2e ─▶ screenshots (push to main/master only)
+frontend-build┘
+```
+
+- **`backend-test`** — `dotnet restore`/`build`/`test` on the whole solution. No Mongo, so the 7 integration tests report skipped.
+- **`frontend-build`** — `npm ci`, `tsc -b` (typecheck), `npm run build`.
+- **`e2e`** — waits on both of the above; writes a throwaway `.env`, boots the full Docker Compose stack, waits for `/health`, then runs `e2e-smoke.mjs` against it. Dumps `docker compose logs` on failure.
+- **`screenshots`** — waits on `e2e`; only runs on a real push (not PRs); repeats the same stack-boot dance, runs `e2e-readme-screenshots.mjs`, and commits any changed PNGs.
 
 ## AI integration (BYOK)
 
